@@ -53,6 +53,17 @@ class MvcListeners extends AbstractListenerAggregate
 
         $redirection = &$redirections[$resourceId];
 
+        $checkRights = (bool) $siteSettings->get('redirector_check_rights');
+        if ($checkRights) {
+            $api = $services->get('Omeka\ApiManager');
+            try {
+                // To use the api is the simplest way to check visibility.
+                $api->read('resources', ['id' => $resourceId], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
+            } catch (\Exception $e) {
+                return;
+            }
+        }
+
         if (mb_substr($redirection, 0, 1) === '/'
             || mb_substr($redirection, 0, 8) === 'https://'
             || mb_substr($redirection, 0, 7) === 'http://'

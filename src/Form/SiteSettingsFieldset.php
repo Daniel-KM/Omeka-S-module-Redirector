@@ -2,6 +2,7 @@
 
 namespace Redirector\Form;
 
+use Common\Form\Element as CommonElement;
 use Laminas\Form\Fieldset;
 use Omeka\Form\Element as OmekaElement;
 
@@ -39,6 +40,17 @@ class SiteSettingsFieldset extends Fieldset
                         151 = events
                         411 = https://omeka.org/s
                         TXT,
+                ],
+            ])
+            ->add([
+                'name' => 'redirector_check_rights',
+                'type' => CommonElement\OptionalCheckbox::class,
+                'options' => [
+                    'element_group' => 'redirector',
+                    'label' => 'Check rights to view resource before redirection', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'redirector_check_rights',
                 ],
             ])
         ;

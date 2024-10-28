@@ -19,6 +19,7 @@ return [
     'redirector' => [
         'site_settings' => [
             'redirector_redirections' => [],
+            'redirector_check_rights' => false,
         ],
     ],
 ];

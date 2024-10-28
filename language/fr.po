@@ -7,8 +7,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-07-01 00:00+0000\n"
-"PO-Revision-Date: 2024-07-01 00:00+0000\n"
+"POT-Creation-Date: 2024-10-28 00:00+0000\n"
+"PO-Revision-Date: 2024-10-28 00:00+0000\n"
 "Last-Translator: Daniel Berthereau <Daniel.fr@Berthereau.net>\n"
 "Language-Team: \n"
 "Language: fr\n"
@@ -16,3 +16,30 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.2.2\n"
+
+#: Module.php:34
+#, php-format
+msgid "The module %1$s should be upgraded to version %2$s or later."
+msgstr ""
+"Le module « %1$s » doit être mis à niveau à la version « %2$s » ou "
+"supérieure."
+
+#: src/Form/SiteSettingsFieldset.php:14 src/Form/SiteSettingsFieldset.php:20
+msgid "Redirector"
+msgstr "Redirecteur"
+
+#: src/Form/SiteSettingsFieldset.php:33
+msgid "Redirections from any resource to any page or url"
+msgstr "Redirections de ressources vers des pages ou urls"
+
+#: src/Form/SiteSettingsFieldset.php:34
+msgid ""
+"Set the resource id, then the sign \"=\", then a page slug or a url, "
+"relative or absolute."
+msgstr ""
+"Indiquer l'identifiant de la ressource, puis le signe « = », puis la page "
+"ou l’url, relative ou absolue."
+
+#: src/Form/SiteSettingsFieldset.php:50
+msgid "Check rights to view resource before redirection"
+msgstr "Vérifier les droits de voir la ressource avant de rediriger"

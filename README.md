@@ -41,7 +41,7 @@ absolute.
 
 ```
 151 = events
-2024 = /s/my-site/page/
+2024 = /s/my-site/page/my-page
 40101 = https://omeka.org/s
 ```
 

@@ -54,15 +54,31 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                 'options' => [
                     'element_group' => 'redirector',
                     'label' => 'Advanced redirections (JSON)', // @translate
-                    'info' => 'JSON object: routeName or key => { "target": "...", "route": "site/page", "params": {...}, "query": {...}, "status": 302 }', // @translate
+                    'info' => 'JSON: route or key => { "target": "...", "route": "site/page", "params": {...}, "query": {...}, "status": 302 }. Redirect is internal when status is not set.', // @translate
                 ],
                 'attributes' => [
                     'id' => 'redirector_redirections_advanced',
                     'rows' => 12,
                     'placeholder' => <<<'JSON'
                         {
+                            "/s/fr/old-path": {
+                                "target": "/s/fr/new-path?ref=old",
+                                "status": 302
+                            },
+                            "/s/my-site/legacy": {
+                                "target": "/s/my-site/search?fulltext=abc"
+                            },
+                            "/s/fr/guest/contributions": {
+                                "target": "/s/fr/guest/comment?group=a-identifier",
+                                "route": "site/guest/comment",
+                                 "params": {
+                                       "__NAMESPACE__": "Comment\\Controller\\Site",
+                                       "controller": "Comment\\Controller\\Site\\CommentController",
+                                       "action": "browse"
+                                  }
+                            },
                             "site/resource-id": {
-                                "target": "/s/{site-slug}/items/{id}",
+                                "target": "/s/{site-slug}/item/{id}",
                                 "query": { "lang": "fr" },
                                 "status": 302
                             },
@@ -70,10 +86,6 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                                 "target": "events",
                                 "route": "site/page",
                                 "params": { "page-slug": "events" }
-                            },
-                            "/s/fr/old-path": {
-                                "target": "/s/fr/new-path?ref=old",
-                                "status": 302
                             }
                         }
                         JSON,

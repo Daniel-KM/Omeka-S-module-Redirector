@@ -98,9 +98,12 @@ class MvcListeners extends AbstractListenerAggregate
             return;
         }
 
+        // Default to internal forwarding unless explicit status.
         $status = isset($config['status']) && in_array((int) $config['status'], [301,302,303,307,308], true)
             ? (int) $config['status']
-            : 302;
+            : null;
+
+        $internal = !$status;
 
         // Rights check (only when resource id available).
         if ($siteSettings->get('redirector_check_rights') && $resourceId) {
@@ -117,11 +120,50 @@ class MvcListeners extends AbstractListenerAggregate
         $targetTemplate = (string) $config['target'];
         $redirection = $this->replacePlaceholders($targetTemplate, $originalParams);
 
-        // Absolute or relative URL.
-        if (mb_substr($redirection, 0, 1) === '/'
+        // Absolute or external URL handling.
+        $isAbsoluteOrExternal = mb_substr($redirection, 0, 1) === '/'
             || mb_substr($redirection, 0, 8) === 'https://'
-            || mb_substr($redirection, 0, 7) === 'http://'
-        ) {
+            || mb_substr($redirection, 0, 7) === 'http://';
+
+        if ($isAbsoluteOrExternal && $internal && mb_substr($redirection, 0, 1) === '/') {
+            // Internal forward: rewrite URI + re-match router.
+            $request = $event->getRequest();
+            $uri = $request->getUri();
+
+            // Split path and query.
+            $pathPart = parse_url($redirection, PHP_URL_PATH) ?: '/';
+            $queryPart = parse_url($redirection, PHP_URL_QUERY) ?: '';
+
+            $uri->setPath($pathPart);
+            $uri->setQuery($queryPart);
+            $request->setUri($uri);
+
+            // Merge configured query params.
+            $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
+            if ($queryPart) {
+                $fromTargetQuery = [];
+                parse_str($queryPart, $fromTargetQuery);
+                $queryParams = array_replace($fromTargetQuery, $queryParams);
+            }
+            if ($queryParams) {
+                $request->getQuery()->fromArray($queryParams);
+            }
+
+            // Re-match router for new path.
+            $router = $event->getRouter();
+            $newMatch = $router->match($request);
+            if ($newMatch instanceof RouteMatch) {
+                // Apply dynamic params override if provided.
+                $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $originalParams);
+                foreach ($dynamicParams as $k => $v) {
+                    $newMatch->setParam($k, $v);
+                }
+                $event->setRouteMatch($newMatch);
+            }
+            return;
+        }
+
+        if ($isAbsoluteOrExternal) {
             $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
             $queryString = $queryParams ? http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986) : '';
             $finalUrl = $redirection . ($queryString ? '?' . $queryString : '');
@@ -129,7 +171,7 @@ class MvcListeners extends AbstractListenerAggregate
             return;
         }
 
-        // Internal page slug default.
+        // Internal page slug flow.
         $routeName = $config['route'] ?? null;
         $siteSlug = $originalParams['site-slug'] ?? null;
         if (!$routeName) {

@@ -30,31 +30,80 @@ class MvcListeners extends AbstractListenerAggregate
          */
 
         $routeMatch = $event->getRouteMatch();
-        $matchedRouteName = $routeMatch->getMatchedRouteName();
+        if (!$routeMatch) {
+            return;
+        }
 
+        $matchedRouteName = $routeMatch->getMatchedRouteName();
+        $services = $event->getApplication()->getServiceManager();
+        $siteSettings = $services->get('Omeka\Settings\Site');
+
+        $simple = $siteSettings->get('redirector_redirections', []);
+        if (!is_array($simple)) {
+            $simple = [];
+        }
+
+        $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
+        $advanced = $advancedRaw !== ''
+            ? json_decode($advancedRaw, true)
+            : [];
+        if (!is_array($advanced)) {
+            $advanced = [];
+        }
+
+        $normalized = [];
+        foreach ($simple as $k => $v) {
+            $normalized[(string) $k] = ['target' => (string) $v];
+        }
+
+        $configs = array_replace($normalized, $advanced);
+        if (!$configs) {
+            return;
+        }
+
+        $params = $routeMatch->getParams();
+        $resourceId = null;
         if ($matchedRouteName === 'site/resource-id') {
             $resourceId = (int) $routeMatch->getParam('id');
         } elseif ($matchedRouteName === 'site/item-set') {
             $resourceId = (int) $routeMatch->getParam('item-set-id');
-        } else {
+        }
+
+        // Match by resource id or by route name or by constructed path key.
+        $keyCandidates = [];
+        if ($resourceId) {
+            $keyCandidates[] = (string) $resourceId;
+        }
+        $keyCandidates[] = $matchedRouteName;
+
+        // Optional path-like key (site specific).
+        if (isset($params['site-slug'])) {
+            $siteSlug = $params['site-slug'];
+            $request = $event->getRequest();
+            $uriPath = $request->getUri()->getPath();
+            // Use raw path as a key if present in config.
+            $keyCandidates[] = $uriPath;
+            // Also without leading slash.
+            $keyCandidates[] = ltrim($uriPath, '/');
+        }
+
+        $config = null;
+        foreach ($keyCandidates as $candidate) {
+            if (isset($configs[$candidate])) {
+                $config = $configs[$candidate];
+                break;
+            }
+        }
+        if (!$config || empty($config['target'])) {
             return;
         }
 
-        if (!$resourceId) {
-            return;
-        }
+        $status = isset($config['status']) && in_array((int) $config['status'], [301,302,303,307,308], true)
+            ? (int) $config['status']
+            : 302;
 
-        $services = $event->getApplication()->getServiceManager();
-        $siteSettings = $services->get('Omeka\Settings\Site');
-        $redirections = $siteSettings->get('redirector_redirections', []);
-        if (!count($redirections) || !isset($redirections[$resourceId])) {
-            return;
-        }
-
-        $redirection = &$redirections[$resourceId];
-
-        $checkRights = (bool) $siteSettings->get('redirector_check_rights');
-        if ($checkRights) {
+        // Rights check (only when resource id available).
+        if ($siteSettings->get('redirector_check_rights') && $resourceId) {
             $api = $services->get('Omeka\ApiManager');
             try {
                 // To use the api is the simplest way to check visibility.
@@ -64,36 +113,81 @@ class MvcListeners extends AbstractListenerAggregate
             }
         }
 
-        // External or absolute path redirect.
+        $originalParams = $params;
+        $targetTemplate = (string) $config['target'];
+        $redirection = $this->replacePlaceholders($targetTemplate, $originalParams);
+
+        // Absolute or relative URL.
         if (mb_substr($redirection, 0, 1) === '/'
             || mb_substr($redirection, 0, 8) === 'https://'
             || mb_substr($redirection, 0, 7) === 'http://'
         ) {
-            $this->redirectToUrlViaHeaders($redirection);
+            $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
+            $queryString = $queryParams ? http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986) : '';
+            $finalUrl = $redirection . ($queryString ? '?' . $queryString : '');
+            $this->redirectToUrlViaHeaders($finalUrl, $status);
             return;
         }
 
-        // This is a page slug. Check for its presence and visibility.
-        $api = $services->get('Omeka\ApiManager');
-        $siteSlug = $routeMatch->getParam('site-slug');
-        try {
-            $site = $api->read('sites', ['slug' => $siteSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false])->getContent();
-            $api->read('site_pages', ['site' => $site->getId(), 'slug' => $redirection], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
-        } catch (\Exception $e) {
-            return;
+        // Internal page slug default.
+        $routeName = $config['route'] ?? null;
+        $siteSlug = $originalParams['site-slug'] ?? null;
+        if (!$routeName) {
+            $routeName = 'site/page';
+            $pageSlug = $redirection;
+            // Optionally verify page existence.
+            try {
+                $api = $services->get('Omeka\ApiManager');
+                $site = $api->read('sites', ['slug' => $siteSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false])->getContent();
+                $api->read('site_pages', ['site' => $site->getId(), 'slug' => $pageSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
+            } catch (\Exception $e) {
+                return;
+            }
+            $baseParams = [
+                '__NAMESPACE__' => 'Omeka\Controller\Site',
+                '__CONTROLLER__' => 'Page',
+                '__SITE__' => true,
+                'controller' => 'Omeka\Controller\Site\Page',
+                'action' => 'show',
+                'site-slug' => $siteSlug,
+                'page-slug' => $pageSlug,
+            ];
+        } else {
+            $baseParams = $originalParams;
         }
-        $params = [
-            '__NAMESPACE__' => 'Omeka\Controller\Site',
-            '__CONTROLLER__' => 'Page',
-            '__SITE__' => true,
-            'controller' => 'Omeka\Controller\Site\Page',
-            'action' => 'show',
-            'site-slug' => $siteSlug,
-            'page-slug' => $redirection,
-        ];
-        $routeMatch = new RouteMatch($params);
-        $routeMatch->setMatchedRouteName('site/page');
-        $event->setRouteMatch($routeMatch);
+
+        $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $originalParams);
+        $finalParams = array_filter(array_replace($baseParams, $dynamicParams), static fn($v) => $v !== null && $v !== '');
+
+        $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
+        if ($queryParams) {
+            $event->getRequest()->getQuery()->fromArray($queryParams);
+        }
+
+        $newMatch = new RouteMatch($finalParams);
+        $newMatch->setMatchedRouteName($routeName);
+        $event->setRouteMatch($newMatch);
+    }
+
+    protected function prepareParamsArray(array $map, array $original): array
+    {
+        $result = [];
+        foreach ($map as $k => $v) {
+            $resolved = $this->replacePlaceholders((string) $v, $original);
+            if ($resolved !== '') {
+                $result[$k] = $resolved;
+            }
+        }
+        return $result;
+    }
+
+    protected function replacePlaceholders(string $template, array $values): string
+    {
+        return preg_replace_callback(
+            '/\{([^}]+)\}/u',
+            fn($m) => (string) ($values[$m[1]] ?? ''),
+            $template
+        ) ?? '';
     }
 
     protected function redirectToUrlViaHeaders(string $url, int $status = 302): void

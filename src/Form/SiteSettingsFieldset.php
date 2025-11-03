@@ -3,10 +3,12 @@
 namespace Redirector\Form;
 
 use Common\Form\Element as CommonElement;
+use Laminas\Form\Element;
 use Laminas\Form\Fieldset;
+use Laminas\InputFilter\InputFilterProviderInterface;
 use Omeka\Form\Element as OmekaElement;
 
-class SiteSettingsFieldset extends Fieldset
+class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterface
 {
     /**
      * @var string
@@ -25,23 +27,59 @@ class SiteSettingsFieldset extends Fieldset
         $this
             ->setAttribute('id', 'redierctor')
             ->setOption('element_groups', $this->elementGroups)
+
             ->add([
                 'name' => 'redirector_redirections',
                 'type' => OmekaElement\ArrayTextarea::class,
                 'options' => [
                     'element_group' => 'redirector',
-                    'label' => 'Redirections from any resource to any page or url', // @translate
-                    'info' => 'Set the resource id, then the sign "=", then a page slug or a url, relative or absolute.', // @translate
+                    'label' => 'Simple redirections from any resource (id = page slug or url)', // @translate
+                    'info' => 'Format: left part is a resource id; right part is a page slug or absolute/relative url.', // @translate
                     'as_key_value' => true,
                 ],
                 'attributes' => [
                     'id' => 'redirector_redirections',
+                    'rows' => 6,
                     'placeholder' => <<<'TXT'
                         151 = events
-                        411 = https://omeka.org/s
+                        2024 = /s/my-site/page/my-page
+                        40101 = https://omeka.org/s
                         TXT,
                 ],
             ])
+
+            ->add([
+                'name' => 'redirector_redirections_advanced',
+                'type' => Element\Textarea::class,
+                'options' => [
+                    'element_group' => 'redirector',
+                    'label' => 'Advanced redirections (JSON)', // @translate
+                    'info' => 'JSON object: routeName or key => { "target": "...", "route": "site/page", "params": {...}, "query": {...}, "status": 302 }', // @translate
+                ],
+                'attributes' => [
+                    'id' => 'redirector_redirections_advanced',
+                    'rows' => 12,
+                    'placeholder' => <<<'JSON'
+                        {
+                            "site/resource-id": {
+                                "target": "/s/{site-slug}/items/{id}",
+                                "query": { "lang": "fr" },
+                                "status": 302
+                            },
+                            "site/item-set": {
+                                "target": "events",
+                                "route": "site/page",
+                                "params": { "page-slug": "events" }
+                            },
+                            "/s/fr/old-path": {
+                                "target": "/s/fr/new-path?ref=old",
+                                "status": 302
+                            }
+                        }
+                        JSON,
+                ],
+            ])
+
             ->add([
                 'name' => 'redirector_check_rights',
                 'type' => CommonElement\OptionalCheckbox::class,
@@ -54,5 +92,77 @@ class SiteSettingsFieldset extends Fieldset
                 ],
             ])
         ;
+    }
+
+    public function getInputFilterSpecification(): array
+    {
+        return [
+            'redirector_redirections' => [
+                'required' => false,
+                'filters' => [
+                    ['name' => 'StripTags'],
+                    ['name' => 'StringTrim'],
+                ],
+            ],
+            'redirector_redirections_advanced' => [
+                'required' => false,
+                'filters' => [
+                    ['name' => 'StringTrim'],
+                ],
+                'validators' => [
+                    [
+                        'name' => 'Laminas\Validator\Json',
+                        'options' => [
+                            'messages' => [
+                                'INVALID' => 'Value is not JSON.', // @translate
+                                'INVALID_JSON' => 'Malformed JSON string.', // @translate
+                            ],
+                        ],
+                    ],
+                    [
+                        'name' => 'Callback',
+                        'options' => [
+                            'callback' => function ($value) {
+                                if ($value === '' || $value === null) {
+                                    return true;
+                                }
+                                $decoded = json_decode($value, true);
+                                if (!is_array($decoded)) {
+                                    return false;
+                                }
+                                if ($decoded === []) {
+                                    return true;
+                                }
+                                $isAssoc = array_keys($decoded) !== range(0, count($decoded) - 1);
+                                if (!$isAssoc) {
+                                    return false;
+                                }
+                                foreach ($decoded as $v) {
+                                    if (!is_array($v) || empty($v['target']) || !is_string($v['target'])) {
+                                        return false;
+                                    }
+                                    if (isset($v['status']) && !in_array((int)$v['status'], [301, 302, 303, 307, 308], true)) {
+                                        return false;
+                                    }
+                                    if (isset($v['params']) && !is_array($v['params'])) {
+                                        return false;
+                                    }
+                                    if (isset($v['query']) && !is_array($v['query'])) {
+                                        return false;
+                                    }
+                                }
+                                return true;
+                            },
+                            'messages' => [
+                                \Laminas\Validator\Callback::INVALID_VALUE => 'JSON must map keys to objects with at least a non-empty "target".', // @translate
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'redirector_check_rights' => [
+                'required' => false,
+            ],
+        ];
     }
 }

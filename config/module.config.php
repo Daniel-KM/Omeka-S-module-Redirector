@@ -29,6 +29,7 @@ return [
     'redirector' => [
         'site_settings' => [
             'redirector_redirections' => [],
+            'redirector_redirections_advanced' => '',
             'redirector_check_rights' => false,
         ],
     ],

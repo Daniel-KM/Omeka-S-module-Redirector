@@ -64,27 +64,13 @@ class MvcListeners extends AbstractListenerAggregate
             }
         }
 
+        // External or absolute path redirect.
         if (mb_substr($redirection, 0, 1) === '/'
             || mb_substr($redirection, 0, 8) === 'https://'
             || mb_substr($redirection, 0, 7) === 'http://'
         ) {
-            /** @see \Laminas\Mvc\Controller\Plugin\Redirect::toUrl() */
-            /* // TODO Use event response in order to get statistics.
-            $event->setResponse(new \Laminas\Http\Response);
-            $event->getResponse()
-                ->setStatusCode(302)
-                ->getHeaders()->addHeaderLine('Location', $redirection);
+            $this->redirectToUrlViaHeaders($redirection);
             return;
-            */
-            if (!headers_sent()) {
-                $serverUrl = new \Laminas\View\Helper\ServerUrl();
-                header('Referer: ' . $serverUrl(true));
-                header('Location: ' . $redirection, true, 302);
-            } else {
-                echo '<script>window.location.href="' . $redirection . '";</script>';
-                echo '<noscript><meta http-equiv="refresh" content="0;url=' . $redirection . '"></noscript>';
-            }
-            die();
         }
 
         // This is a page slug. Check for its presence and visibility.
@@ -108,5 +94,38 @@ class MvcListeners extends AbstractListenerAggregate
         $routeMatch = new RouteMatch($params);
         $routeMatch->setMatchedRouteName('site/page');
         $event->setRouteMatch($routeMatch);
+    }
+
+    protected function redirectToUrlViaHeaders(string $url, int $status = 302): void
+    {
+        // Prepend domain if url is a site-relative path.
+        if (mb_substr($url, 0, 1) === '/') {
+            $serverUrlHelper = new \Laminas\View\Helper\ServerUrl();
+            $base = rtrim($serverUrlHelper(), '/');
+            $url = $base . $url;
+        }
+
+        $status = in_array($status, [301, 302, 303, 307, 308], true)
+            ? $status
+            : 302;
+
+        /** @see \Laminas\Mvc\Controller\Plugin\Redirect::toUrl() */
+        /* // TODO Use event response in order to get statistics.
+        $event->setResponse(new \Laminas\Http\Response);
+        $event->getResponse()
+            ->setStatusCode($status)
+            ->getHeaders()->addHeaderLine('Location', $url);
+        return;
+         */
+        if (headers_sent()) {
+            $urlEscaped = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+            echo '<script>window.location.href="' . $urlEscaped . '";</script>';
+            echo '<noscript><meta http-equiv="refresh" content="0;url=' . $urlEscaped . '"></noscript>';
+        } else {
+            $serverUrl = new \Laminas\View\Helper\ServerUrl();
+            header('Referer: ' . $serverUrl(true));
+            header('Location: ' . $url, true, $status);
+        }
+        die();
     }
 }

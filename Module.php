@@ -2,7 +2,7 @@
 
 namespace Redirector;
 
-if (!class_exists(\Common\TraitModule::class)) {
+if (!class_exists('Common\TraitModule', false)) {
     require_once dirname(__DIR__) . '/Common/TraitModule.php';
 }
 
@@ -15,7 +15,7 @@ use Omeka\Settings\SiteSettings;
 /**
  * Easy Admin
  *
- * @copyright Daniel Berthereau, 2017-2024
+ * @copyright Daniel Berthereau, 2017-2025
  * @license http://www.cecill.info/licences/Licence_CeCILL_V2.1-en.txt
  */
 class Module extends AbstractModule

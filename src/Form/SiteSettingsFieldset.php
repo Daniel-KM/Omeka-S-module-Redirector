@@ -25,7 +25,7 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
     public function init(): void
     {
         $this
-            ->setAttribute('id', 'redierctor')
+            ->setAttribute('id', 'redirector')
             ->setOption('element_groups', $this->elementGroups)
 
             ->add([

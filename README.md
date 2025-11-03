@@ -6,8 +6,9 @@ Redirector (module for Omeka S)
 > than the previous repository.__
 
 [Redirector] is a module for [Omeka S] that allows to redirect any resource page
-to any other page or url, internal or external. For example, it allows to have a
-specific page with html and specific blocks for a specific item set.
+and any route to any other page or url, internal or external. For example, it
+allows to set a specific url for an item set, and this url can be a specific
+page with specific blocks.
 
 
 Installation
@@ -102,7 +103,7 @@ of the CeCILL license and that you accept its terms.
 Copyright
 ---------
 
-* Copyright Daniel Berthereau, 2024 (see [Daniel-KM] on GitLab)
+* Copyright Daniel Berthereau, 2024-2025 (see [Daniel-KM] on GitLab)
 
 
 [Redirector]: https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector

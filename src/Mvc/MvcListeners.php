@@ -35,38 +35,26 @@ class MvcListeners extends AbstractListenerAggregate
         }
 
         $matchedRouteName = $routeMatch->getMatchedRouteName();
+        if (substr($matchedRouteName, 0, 4) !== 'site') {
+            return;
+        }
+
         $services = $event->getApplication()->getServiceManager();
         $siteSettings = $services->get('Omeka\Settings\Site');
 
-        $simple = $siteSettings->get('redirector_redirections', []);
-        if (!is_array($simple)) {
-            $simple = [];
-        }
-
-        $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
-        $advanced = $advancedRaw !== ''
-            ? json_decode($advancedRaw, true)
-            : [];
-        if (!is_array($advanced)) {
-            $advanced = [];
-        }
-
-        $normalized = [];
-        foreach ($simple as $k => $v) {
-            $normalized[(string) $k] = ['target' => (string) $v];
-        }
-
-        $configs = array_replace($normalized, $advanced);
+        $configs = $siteSettings->get('redirector_redirections_merged', []);
         if (!$configs) {
             return;
         }
 
         $params = $routeMatch->getParams();
-        $resourceId = null;
+
         if ($matchedRouteName === 'site/resource-id') {
             $resourceId = (int) $routeMatch->getParam('id');
         } elseif ($matchedRouteName === 'site/item-set') {
             $resourceId = (int) $routeMatch->getParam('item-set-id');
+        } else {
+            $resourceId = null;
         }
 
         // Match by resource id or by route name or by constructed path key.
@@ -87,14 +75,14 @@ class MvcListeners extends AbstractListenerAggregate
             $keyCandidates[] = ltrim($uriPath, '/');
         }
 
-        $config = null;
+        $config = [];
         foreach ($keyCandidates as $candidate) {
             if (isset($configs[$candidate])) {
                 $config = $configs[$candidate];
                 break;
             }
         }
-        if (!$config || empty($config['target'])) {
+        if (empty($config['target'])) {
             return;
         }
 
@@ -106,7 +94,7 @@ class MvcListeners extends AbstractListenerAggregate
         $internal = !$status;
 
         // Rights check (only when resource id available).
-        if ($siteSettings->get('redirector_check_rights') && $resourceId) {
+        if ($resourceId && $siteSettings->get('redirector_check_rights')) {
             $api = $services->get('Omeka\ApiManager');
             try {
                 // To use the api is the simplest way to check visibility.
@@ -177,9 +165,9 @@ class MvcListeners extends AbstractListenerAggregate
         if (!$routeName) {
             $routeName = 'site/page';
             $pageSlug = $redirection;
-            // Optionally verify page existence.
+            $api = $services->get('Omeka\ApiManager');
             try {
-                $api = $services->get('Omeka\ApiManager');
+                // To use the api is the simplest way to check visibility.
                 $site = $api->read('sites', ['slug' => $siteSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false])->getContent();
                 $api->read('site_pages', ['site' => $site->getId(), 'slug' => $pageSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
             } catch (\Exception $e) {

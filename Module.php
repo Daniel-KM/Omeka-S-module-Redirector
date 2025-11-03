@@ -7,8 +7,10 @@ if (!class_exists(\Common\TraitModule::class)) {
 }
 
 use Common\TraitModule;
+use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Omeka\Module\AbstractModule;
+use Omeka\Settings\SiteSettings;
 
 /**
  * Easy Admin
@@ -45,5 +47,52 @@ class Module extends AbstractModule
             'form.add_elements',
             [$this, 'handleSiteSettings']
         );
+    }
+
+    public function handleSiteSettings(Event $event): void
+    {
+        $this->handleAnySettings($event, 'site_settings');
+        $this->finalizeSiteSettings();
+    }
+
+    /**
+     * Check and merge redirections in one setting.
+     */
+    protected function finalizeSiteSettings(?SiteSettings $siteSettings = null): void
+    {
+        /**
+         * @var \Omeka\Settings\SiteSettings $siteSettings
+         */
+        $siteSettings ??= $this->getServiceLocator()->get('Omeka\Settings\Site');
+
+        $simple = $siteSettings->get('redirector_redirections', []);
+        if (!is_array($simple)) {
+            $simple = [];
+        }
+
+        $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
+        $advanced = $advancedRaw
+            ? json_decode($advancedRaw, true)
+            : [];
+        if ($advancedRaw && !$advanced) {
+            $plugins = $this->getServiceLocator()->get('ControllerPluginManager');
+            $messenger = $plugins->get('messenger');
+            $messenger->addWarning(new \Common\Stdlib\PsrMessage(
+                'The advanced redirections are not a valid json. Check quotes, commas, escapes and backslash.') // @translate
+            );
+        }
+        if (!is_array($advanced)) {
+            $advanced = [];
+        }
+
+        $normalized = [];
+        foreach ($simple as $k => $v) {
+            $normalized[(string) $k] = ['target' => (string) $v];
+        }
+
+        // Advanced overrides simple.
+        $configs = array_replace($normalized, $advanced);
+
+        $siteSettings->set('redirector_redirections_merged', $configs);
     }
 }

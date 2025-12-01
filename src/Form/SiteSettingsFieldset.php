@@ -116,7 +116,7 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
             'redirector_redirections' => [
                 'required' => false,
                 'filters' => [
-                    ['name' => 'StripTags'],
+                    // Dont' use StripTags to avoid corrupting urls with < or >.
                     ['name' => 'StringTrim'],
                 ],
             ],

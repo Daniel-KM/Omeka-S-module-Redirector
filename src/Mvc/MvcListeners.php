@@ -50,12 +50,13 @@ class MvcListeners extends AbstractListenerAggregate
 
         $params = $routeMatch->getParams();
 
+        $resourceId = null;
         if ($matchedRouteName === 'site/resource-id') {
-            $resourceId = (int) $routeMatch->getParam('id');
+            $id = $routeMatch->getParam('id');
+            $resourceId = is_numeric($id) ? (int) $id : null;
         } elseif ($matchedRouteName === 'site/item-set') {
-            $resourceId = (int) $routeMatch->getParam('item-set-id');
-        } else {
-            $resourceId = null;
+            $id = $routeMatch->getParam('item-set-id');
+            $resourceId = is_numeric($id) ? (int) $id : null;
         }
 
         // Match by resource id or by route name or by constructed path key.

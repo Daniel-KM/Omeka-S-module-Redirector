@@ -149,11 +149,14 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                                 if (!$isAssoc) {
                                     return false;
                                 }
-                                foreach ($decoded as $v) {
+                                // Collect sources and targets for loop detection.
+                                $sources = array_keys($decoded);
+                                $targets = [];
+                                foreach ($decoded as $key => $v) {
                                     if (!is_array($v) || empty($v['target']) || !is_string($v['target'])) {
                                         return false;
                                     }
-                                    if (isset($v['status']) && !in_array((int)$v['status'], [301, 302, 303, 307, 308], true)) {
+                                    if (isset($v['status']) && !in_array((int) $v['status'], [301, 302, 303, 307, 308], true)) {
                                         return false;
                                     }
                                     if (isset($v['params']) && !is_array($v['params'])) {
@@ -162,11 +165,28 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                                     if (isset($v['query']) && !is_array($v['query'])) {
                                         return false;
                                     }
+                                    // Validate route is a non-empty string if provided.
+                                    if (isset($v['route']) && (!is_string($v['route']) || $v['route'] === '')) {
+                                        return false;
+                                    }
+                                    // Extract target path for loop detection.
+                                    $targetPath = parse_url($v['target'], PHP_URL_PATH) ?: $v['target'];
+                                    $targets[$key] = $targetPath;
+                                }
+                                // Check for direct redirect loops (A→B and B→A).
+                                foreach ($targets as $source => $target) {
+                                    if (isset($decoded[$target])) {
+                                        $reverseTarget = parse_url($decoded[$target]['target'], PHP_URL_PATH)
+                                            ?: $decoded[$target]['target'];
+                                        if ($reverseTarget === $source) {
+                                            return false;
+                                        }
+                                    }
                                 }
                                 return true;
                             },
                             'messages' => [
-                                \Laminas\Validator\Callback::INVALID_VALUE => 'JSON must map keys to objects with at least a non-empty "target".', // @translate
+                                \Laminas\Validator\Callback::INVALID_VALUE => 'JSON must map keys to objects with at least a non-empty "target". Routes must be non-empty strings. No redirect loops allowed.', // @translate
                             ],
                         ],
                     ],

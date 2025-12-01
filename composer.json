@@ -1,0 +1,36 @@
+{
+    "name": "daniel-km/omeka-s-module-redirector",
+    "description": "Module for Omeka S to redirect any resource or route to any page or url, for example to display an item set with a specific page.",
+    "type": "library",
+    "license": "CECILL-2.1",
+    "authors": [
+        {
+            "name": "Daniel Berthereau",
+            "email": "Daniel.packagist@Berthereau.net"
+        }
+    ],
+    "homepage": "https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector",
+    "support": {
+        "issues": "https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector/-/issues",
+        "forum": "https://forum.omeka.org/"
+    },
+    "keywords": [
+        "Omeka S",
+        "module",
+        "theme",
+        "seo"
+    ],
+    "autoload": {
+        "psr-4": {
+            "Redirector\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "RedirectorTest\\": "test/RedirectorTest/"
+        }
+    },
+    "extra": {
+        "installer-name": "Redirector"
+    }
+}

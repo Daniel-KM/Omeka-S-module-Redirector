@@ -126,13 +126,17 @@ class MvcListeners extends AbstractListenerAggregate
             $uri->setQuery($queryPart);
             $request->setUri($uri);
 
-            // Merge configured query params.
+            // Merge configured query params with original query params.
+            // Original query params (sort_by, sort_order, page, etc.) take precedence.
+            $originalQuery = $request->getQuery()->toArray();
             $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
             if ($queryPart) {
                 $fromTargetQuery = [];
                 parse_str($queryPart, $fromTargetQuery);
                 $queryParams = array_replace($fromTargetQuery, $queryParams);
             }
+            // Merge: redirect params first, then original params override.
+            $queryParams = array_replace($queryParams, $originalQuery);
             if ($queryParams) {
                 $request->getQuery()->fromArray($queryParams);
             }

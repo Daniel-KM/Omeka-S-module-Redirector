@@ -2,6 +2,7 @@
 
 namespace Redirector\Mvc;
 
+use Common\Stdlib\PsrMessage;
 use Laminas\EventManager\AbstractListenerAggregate;
 use Laminas\EventManager\EventManagerInterface;
 use Laminas\Mvc\MvcEvent;
@@ -100,6 +101,12 @@ class MvcListeners extends AbstractListenerAggregate
                 // To use the api is the simplest way to check visibility.
                 $api->read('resources', ['id' => $resourceId], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
             } catch (\Exception $e) {
+                // Resource not accessible (not found or no permission).
+                $logger = $services->get('Omeka\Logger');
+                $logger->warn(new PsrMessage(
+                    '[Redirector] Rights check failed for resource {resource_id}: {message}', // @translate
+                    ['resource_id' => $resourceId, 'message' => $e->getMessage()]
+                ));
                 return;
             }
         }
@@ -175,6 +182,12 @@ class MvcListeners extends AbstractListenerAggregate
                 $site = $api->read('sites', ['slug' => $siteSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false])->getContent();
                 $api->read('site_pages', ['site' => $site->getId(), 'slug' => $pageSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
             } catch (\Exception $e) {
+                // Site or page not accessible (not found or no permission).
+                $logger = $services->get('Omeka\Logger');
+                $logger->warn(new PsrMessage(
+                    '[Redirector] Page redirect failed for site "{site_slug}", page "{page_slug}": {message}', // @translate
+                    ['site_slug' => $siteSlug, 'page_slug' => $pageSlug, 'message' => $e->getMessage()]
+                ));
                 return;
             }
             $baseParams = [

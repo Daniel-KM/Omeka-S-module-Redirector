@@ -115,12 +115,10 @@ class MvcListeners extends AbstractListenerAggregate
         $targetTemplate = (string) $config['target'];
         $redirection = $this->replacePlaceholders($targetTemplate, $originalParams);
 
-        // Absolute or external URL handling.
-        $isAbsoluteOrExternal = mb_substr($redirection, 0, 1) === '/'
-            || mb_substr($redirection, 0, 8) === 'https://'
-            || mb_substr($redirection, 0, 7) === 'http://';
+        $isInternalAbsolutePath = strpos($redirection, '/') === 0;
+        $isExternalUrl = strpos($redirection, 'https://') === 0 || strpos($redirection, 'http://') === 0;
 
-        if ($isAbsoluteOrExternal && $internal && mb_substr($redirection, 0, 1) === '/') {
+        if ($isInternalAbsolutePath && $internal) {
             // Internal forward: rewrite URI + re-match router.
             $request = $event->getRequest();
             $uri = $request->getUri();
@@ -162,7 +160,7 @@ class MvcListeners extends AbstractListenerAggregate
             return;
         }
 
-        if ($isAbsoluteOrExternal) {
+        if ($isInternalAbsolutePath || $isExternalUrl) {
             $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
             $queryString = $queryParams ? http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986) : '';
             $finalUrl = $redirection . ($queryString ? '?' . $queryString : '');
@@ -174,11 +172,15 @@ class MvcListeners extends AbstractListenerAggregate
         $routeName = $config['route'] ?? null;
         $siteSlug = $originalParams['site-slug'] ?? null;
         if (!$routeName) {
+            // Cannot redirect to page without site context.
+            if (!$siteSlug) {
+                return;
+            }
             $routeName = 'site/page';
             $pageSlug = $redirection;
             $api = $services->get('Omeka\ApiManager');
             try {
-                // To use the api is the simplest way to check visibility.
+                // To use the api read is the simplest way to check visibility.
                 $site = $api->read('sites', ['slug' => $siteSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false])->getContent();
                 $api->read('site_pages', ['site' => $site->getId(), 'slug' => $pageSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
             } catch (\Exception $e) {
@@ -204,6 +206,7 @@ class MvcListeners extends AbstractListenerAggregate
         }
 
         $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $originalParams);
+        // Remove useless null and empty string to avoid overriding route part.
         $finalParams = array_filter(array_replace($baseParams, $dynamicParams), static fn($v) => $v !== null && $v !== '');
 
         $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
@@ -240,7 +243,7 @@ class MvcListeners extends AbstractListenerAggregate
     protected function redirectToUrlViaHeaders(string $url, int $status = 302): void
     {
         // Prepend domain if url is a site-relative path.
-        if (mb_substr($url, 0, 1) === '/') {
+        if (strpos($url, '/') === 0) {
             $serverUrlHelper = new \Laminas\View\Helper\ServerUrl();
             $base = rtrim($serverUrlHelper(), '/');
             $url = $base . $url;

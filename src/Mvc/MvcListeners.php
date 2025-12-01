@@ -233,6 +233,24 @@ class MvcListeners extends AbstractListenerAggregate
             $url = $base . $url;
         }
 
+        // Security:
+        // Validate url to prevent header injection and XSS.
+        // Reject urls with newline characters (header injection).
+        if (preg_match('/[\r\n]/', $url)) {
+            return;
+        }
+
+        // Validate url scheme - only allow http/https.
+        $parsedUrl = parse_url($url);
+        if (!$parsedUrl || !isset($parsedUrl['scheme'])) {
+            return;
+        }
+
+        $scheme = strtolower($parsedUrl['scheme']);
+        if (!in_array($scheme, ['http', 'https'], true)) {
+            return;
+        }
+
         $status = in_array($status, [301, 302, 303, 307, 308], true)
             ? $status
             : 302;
@@ -246,12 +264,11 @@ class MvcListeners extends AbstractListenerAggregate
         return;
          */
         if (headers_sent()) {
-            $urlEscaped = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+            // Use url-safe escaping for html context.
+            $urlEscaped = htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
             echo '<script>window.location.href="' . $urlEscaped . '";</script>';
             echo '<noscript><meta http-equiv="refresh" content="0;url=' . $urlEscaped . '"></noscript>';
         } else {
-            $serverUrl = new \Laminas\View\Helper\ServerUrl();
-            header('Referer: ' . $serverUrl(true));
             header('Location: ' . $url, true, $status);
         }
         die();

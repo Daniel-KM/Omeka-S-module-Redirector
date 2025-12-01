@@ -7,39 +7,105 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-10-28 00:00+0000\n"
-"PO-Revision-Date: 2024-10-28 00:00+0000\n"
+"POT-Creation-Date: 2025-12-01 00:00+0000\n"
+"PO-Revision-Date: 2025-12-01 00:00+0000\n"
 "Last-Translator: Daniel Berthereau <Daniel.fr@Berthereau.net>\n"
 "Language-Team: \n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.2.2\n"
+"X-Generator: Poedit 3.6\n"
 
-#: Module.php:34
+#: Module.php:35
 #, php-format
 msgid "The module %1$s should be upgraded to version %2$s or later."
 msgstr ""
 "Le module « %1$s » doit être mis à niveau à la version « %2$s » ou "
 "supérieure."
 
-#: src/Form/SiteSettingsFieldset.php:14 src/Form/SiteSettingsFieldset.php:20
+#: data/scripts/upgrade.php:54
+msgid "It is now possible to manage complex redirections with placeholders."
+msgstr ""
+"Il est désormais possible de gérer des redirections complexes avec des "
+"jokers."
+
+#: Module.php:80
+msgid ""
+"The advanced redirections are not a valid json. Check quotes, commas, "
+"escapes and backslash."
+msgstr ""
+"Les redirections avancées ne sont pas un json valide. Vérifier les "
+"guillemets, les virgules, les échappements et les barres inverses."
+
+#: src/Mvc/MvcListeners.php:108
+msgid "[Redirector] Rights check failed for resource {resource_id}: {message}"
+msgstr ""
+"[Redirecteur] La vérification des droits a échoué pour la ressource "
+"{resource_id} : {message}"
+
+#: src/Mvc/MvcListeners.php:191
+msgid ""
+"[Redirector] Page redirect failed for site \"{site_slug}\", page "
+"\"{page_slug}\": {message}"
+msgstr ""
+"[Redirecteur] La redirection de la page a échoué pour le site {site_slug}, "
+"page {page_slug} : {message}"
+
+#: src/Form/SiteSettingsFieldset.php:16 src/Form/SiteSettingsFieldset.php:22
 msgid "Redirector"
 msgstr "Redirecteur"
 
-#: src/Form/SiteSettingsFieldset.php:33
-msgid "Redirections from any resource to any page or url"
-msgstr "Redirections de ressources vers des pages ou urls"
+#: src/Form/SiteSettingsFieldset.php:36
+msgid "Simple redirections from any resource (id = page slug or url)"
+msgstr "Redirections simples des ressources (id = chemin de la page ou url)"
 
-#: src/Form/SiteSettingsFieldset.php:34
+#: src/Form/SiteSettingsFieldset.php:37
 msgid ""
-"Set the resource id, then the sign \"=\", then a page slug or a url, "
-"relative or absolute."
+"Format: left part is a resource id; right part is a page slug or absolute/"
+"relative url."
 msgstr ""
-"Indiquer l'identifiant de la ressource, puis le signe « = », puis la page "
-"ou l’url, relative ou absolue."
+"Format : la partie gauche est l’id de la ressource ; la partie droite est le "
+"chemin de la page ou l’url relative ou absolue."
 
-#: src/Form/SiteSettingsFieldset.php:50
+#: src/Form/SiteSettingsFieldset.php:56
+msgid "Advanced redirections (JSON)"
+msgstr "Redirections avancées (json)"
+
+#: src/Form/SiteSettingsFieldset.php:57
+msgid ""
+"JSON: route or key => { \"target\": \"...\", \"route\": \"site/page\", "
+"\"params\": {...}, \"query\": {...}, \"status\": 302 }. Redirect is internal "
+"when status is not set."
+msgstr ""
+"Json : route ou clé => { \"target\": \"...\", \"route\": \"site/page\", "
+"\"params\": {...}, \"query\": {...}, \"status\": 302 }. Redirige vers la "
+"page interne si le statut n’est pas indiqué."
+
+#: src/Form/SiteSettingsFieldset.php:104
 msgid "Check rights to view resource before redirection"
 msgstr "Vérifier les droits de voir la ressource avant de rediriger"
+
+#: src/Form/SiteSettingsFieldset.php:133
+msgid "Value is not JSON."
+msgstr "La valeur n’est pas json."
+
+#: src/Form/SiteSettingsFieldset.php:134
+msgid "Malformed JSON string."
+msgstr "Chaîne json malformée."
+
+#: src/Form/SiteSettingsFieldset.php:193
+msgid ""
+"JSON must map keys to objects with at least a non-empty \"target\". Routes "
+"must be non-empty strings. No redirect loops allowed."
+msgstr ""
+"Le json doit aliger des clées aux objets avec au moins une \"target\" non-"
+"vide. Les routes doivent être des chaînes non-vides. Les redirections "
+"multiples sont interdites."
+
+#~ msgid ""
+#~ "Set the resource id, then the sign \"=\", then a page slug or a url, "
+#~ "relative or absolute."
+#~ msgstr ""
+#~ "Indiquer l'identifiant de la ressource, puis le signe « = », puis la page "
+#~ "ou l’url, relative ou absolue."

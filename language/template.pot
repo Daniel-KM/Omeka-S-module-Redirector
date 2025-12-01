@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-10-28 00:00+0000\n"
+"POT-Creation-Date: 2025-12-01 00:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,25 +17,70 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: Module.php:34
+#: Module.php:35
 #, php-format
 msgid "The module %1$s should be upgraded to version %2$s or later."
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:14 src/Form/SiteSettingsFieldset.php:20
+#: data/scripts/upgrade.php:54
+msgid "It is now possible to manage complex redirections with placeholders."
+msgstr ""
+
+#: Module.php:80
+msgid ""
+"The advanced redirections are not a valid json. Check quotes, commas, "
+"escapes and backslash."
+msgstr ""
+
+#: src/Mvc/MvcListeners.php:108
+msgid "[Redirector] Rights check failed for resource {resource_id}: {message}"
+msgstr ""
+
+#: src/Mvc/MvcListeners.php:191
+msgid ""
+"[Redirector] Page redirect failed for site \"{site_slug}\", page "
+"\"{page_slug}\": {message}"
+msgstr ""
+
+#: src/Form/SiteSettingsFieldset.php:16 src/Form/SiteSettingsFieldset.php:22
 msgid "Redirector"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:33
-msgid "Redirections from any resource to any page or url"
+#: src/Form/SiteSettingsFieldset.php:36
+msgid "Simple redirections from any resource (id = page slug or url)"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:34
+#: src/Form/SiteSettingsFieldset.php:37
 msgid ""
-"Set the resource id, then the sign \"=\", then a page slug or a url, "
-"relative or absolute."
+"Format: left part is a resource id; right part is a page slug or absolute/"
+"relative url."
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:50
+#: src/Form/SiteSettingsFieldset.php:56
+msgid "Advanced redirections (JSON)"
+msgstr ""
+
+#: src/Form/SiteSettingsFieldset.php:57
+msgid ""
+"JSON: route or key => { \"target\": \"...\", \"route\": \"site/page\", "
+"\"params\": {...}, \"query\": {...}, \"status\": 302 }. Redirect is internal "
+"when status is not set."
+msgstr ""
+
+#: src/Form/SiteSettingsFieldset.php:104
 msgid "Check rights to view resource before redirection"
+msgstr ""
+
+#: src/Form/SiteSettingsFieldset.php:133
+msgid "Value is not JSON."
+msgstr ""
+
+#: src/Form/SiteSettingsFieldset.php:134
+msgid "Malformed JSON string."
+msgstr ""
+
+#: src/Form/SiteSettingsFieldset.php:193
+msgid ""
+"JSON must map keys to objects with at least a non-empty \"target\". Routes "
+"must be non-empty strings. No redirect loops allowed."
 msgstr ""

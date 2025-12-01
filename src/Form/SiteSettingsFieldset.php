@@ -79,13 +79,17 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                             },
                             "site/resource-id": {
                                 "target": "/s/{site-slug}/item/{id}",
-                                "query": { "lang": "fr" },
+                                "query": {
+                                    "lang": "fr"
+                                },
                                 "status": 302
                             },
                             "site/item-set": {
                                 "target": "events",
                                 "route": "site/page",
-                                "params": { "page-slug": "events" }
+                                "params": {
+                                    "page-slug": "events"
+                                }
                             }
                         }
                         JSON,

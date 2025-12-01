@@ -30,6 +30,15 @@ the module to `Redirector`.
 
 Then install it like any other Omeka module and follow the config instructions.
 
+* For test
+
+The module includes a comprehensive test suite with unit and functional tests.
+Run them from the root of Omeka:
+
+```sh
+vendor/bin/phpunit -c modules/Redirector/test/phpunit.xml --testdox
+```
+
 
 Usage
 -----
@@ -44,6 +53,43 @@ absolute.
 151 = events
 2024 = /s/my-site/page/my-page
 40101 = https://omeka.org/s
+```
+
+For complex cases, it is possible to define the whole route:
+
+```json
+ {
+    "/s/fr/old-path": {
+        "target": "/s/fr/new-path?ref=old",
+        "status": 302
+    },
+    "/s/my-site/legacy": {
+        "target": "/s/my-site/search?fulltext=abc"
+    },
+    "/s/fr/guest/contributions": {
+        "target": "/s/fr/guest/comment?group=a-identifier",
+        "route": "site/guest/comment",
+        "params": {
+            "__NAMESPACE__": "Comment\\Controller\\Site",
+            "controller": "Comment\\Controller\\Site\\CommentController",
+            "action": "browse"
+        }
+    },
+    "site/resource-id": {
+        "target": "/s/{site-slug}/item/{id}",
+        "query": {
+            "lang": "fr"
+        },
+        "status": 302
+    },
+    "site/item-set": {
+        "target": "events",
+        "route": "site/page",
+        "params": {
+            "page-slug": "events"
+        }
+    }
+}
 ```
 
 

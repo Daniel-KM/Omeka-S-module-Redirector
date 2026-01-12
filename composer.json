@@ -27,7 +27,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "RedirectorTest\\": "test/RedirectorTest/"
+            "RedirectorTest\\": "tests/RedirectorTest/"
         }
     },
     "extra": {

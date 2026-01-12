@@ -149,7 +149,7 @@ of the CeCILL license and that you accept its terms.
 Copyright
 ---------
 
-* Copyright Daniel Berthereau, 2024-2025 (see [Daniel-KM] on GitLab)
+* Copyright Daniel Berthereau, 2024-2026 (see [Daniel-KM] on GitLab)
 
 
 [Redirector]: https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector

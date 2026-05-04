@@ -36,7 +36,7 @@ class MvcListeners extends AbstractListenerAggregate
         }
 
         $matchedRouteName = $routeMatch->getMatchedRouteName();
-        if (substr($matchedRouteName, 0, 4) !== 'site') {
+        if ($matchedRouteName !== 'site' && strpos($matchedRouteName, 'site/') !== 0) {
             return;
         }
 
@@ -83,9 +83,7 @@ class MvcListeners extends AbstractListenerAggregate
 
         // Optional path-like key (site specific).
         if (isset($params['site-slug'])) {
-            $siteSlug = $params['site-slug'];
-            $request = $event->getRequest();
-            $uriPath = $request->getUri()->getPath();
+            $uriPath = $event->getRequest()->getUri()->getPath();
             // Use raw path as a key if present in config.
             $keyCandidates[] = $uriPath;
             // Also without leading slash.
@@ -127,9 +125,8 @@ class MvcListeners extends AbstractListenerAggregate
             }
         }
 
-        $originalParams = $params;
         $targetTemplate = (string) $config['target'];
-        $redirection = $this->replacePlaceholders($targetTemplate, $originalParams);
+        $redirection = $this->replacePlaceholders($targetTemplate, $params);
 
         $isInternalAbsolutePath = strpos($redirection, '/') === 0;
         $isExternalUrl = strpos($redirection, 'https://') === 0 || strpos($redirection, 'http://') === 0;
@@ -154,7 +151,7 @@ class MvcListeners extends AbstractListenerAggregate
             // Merge configured query params with original query params.
             // Original query params (sort_by, sort_order, page, etc.) take precedence.
             $originalQuery = $request->getQuery()->toArray();
-            $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
+            $queryParams = $this->prepareParamsArray($config['query'] ?? [], $params);
             if ($queryPart) {
                 $fromTargetQuery = [];
                 parse_str($queryPart, $fromTargetQuery);
@@ -171,7 +168,7 @@ class MvcListeners extends AbstractListenerAggregate
             $newMatch = $router->match($request);
             if ($newMatch instanceof RouteMatch) {
                 // Apply dynamic params override if provided.
-                $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $originalParams);
+                $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $params);
                 foreach ($dynamicParams as $k => $v) {
                     $newMatch->setParam($k, $v);
                 }
@@ -181,16 +178,16 @@ class MvcListeners extends AbstractListenerAggregate
         }
 
         if ($isInternalAbsolutePath || $isExternalUrl) {
-            $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
+            $queryParams = $this->prepareParamsArray($config['query'] ?? [], $params);
             $queryString = $queryParams ? http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986) : '';
             $finalUrl = $redirection . ($queryString ? '?' . $queryString : '');
-            $this->redirectToUrlViaHeaders($finalUrl, $status);
+            $this->redirectToUrlViaHeaders($finalUrl, $status, $services);
             return;
         }
 
         // Internal page slug flow.
         $routeName = $config['route'] ?? null;
-        $siteSlug = $originalParams['site-slug'] ?? null;
+        $siteSlug = $params['site-slug'] ?? null;
         if (!$routeName) {
             // Cannot redirect to page without site context.
             if (!$siteSlug) {
@@ -227,10 +224,10 @@ class MvcListeners extends AbstractListenerAggregate
                 'page-slug' => $pageSlug,
             ];
         } else {
-            $baseParams = $originalParams;
+            $baseParams = $params;
         }
 
-        $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $originalParams);
+        $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $params);
         // Reject override of routing internals: an admin-supplied params map
         // must not be able to point the dispatcher to an arbitrary controller
         // or namespace. Allow only when no explicit page route was forged.
@@ -243,7 +240,7 @@ class MvcListeners extends AbstractListenerAggregate
         // Remove useless null and empty string to avoid overriding route part.
         $finalParams = array_filter(array_replace($baseParams, $dynamicParams), static fn($v) => $v !== null && $v !== '');
 
-        $queryParams = $this->prepareParamsArray($config['query'] ?? [], $originalParams);
+        $queryParams = $this->prepareParamsArray($config['query'] ?? [], $params);
         if ($queryParams) {
             $event->getRequest()->getQuery()->fromArray($queryParams);
         }
@@ -274,11 +271,13 @@ class MvcListeners extends AbstractListenerAggregate
         ) ?? '';
     }
 
-    protected function redirectToUrlViaHeaders(string $url, int $status = 302): void
+    protected function redirectToUrlViaHeaders(string $url, int $status = 302, $services = null): void
     {
         // Prepend domain if url is a site-relative path.
         if (strpos($url, '/') === 0) {
-            $serverUrlHelper = new \Laminas\View\Helper\ServerUrl();
+            $serverUrlHelper = $services
+                ? $services->get('ViewHelperManager')->get('serverUrl')
+                : new \Laminas\View\Helper\ServerUrl();
             $base = rtrim($serverUrlHelper(), '/');
             $url = $base . $url;
         }

@@ -56,8 +56,11 @@ class Module extends AbstractModule
 
     /**
      * Check and merge redirections in one setting.
+     *
+     * @internal Public so MvcListeners can refresh stale cache when the
+     * setting was never persisted (e.g. fresh install without form save).
      */
-    protected function finalizeSiteSettings(?SiteSettings $siteSettings = null): void
+    public function finalizeSiteSettings(?SiteSettings $siteSettings = null): void
     {
         /**
          * @var \Omeka\Settings\SiteSettings $siteSettings

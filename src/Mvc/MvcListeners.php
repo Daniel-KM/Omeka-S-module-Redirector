@@ -45,7 +45,22 @@ class MvcListeners extends AbstractListenerAggregate
 
         $configs = $siteSettings->get('redirector_redirections_merged', []);
         if (!$configs) {
-            return;
+            // Lazy fallback: regenerate the merged setting from the source
+            // ones. Useful right after install when the admin has not yet
+            // saved the form.
+            $simple = $siteSettings->get('redirector_redirections', []);
+            $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
+            if (!$simple && !$advancedRaw) {
+                return;
+            }
+            $module = $services->get('Omeka\ModuleManager')->getModule('Redirector');
+            if ($module && method_exists($module, 'finalizeSiteSettings')) {
+                $module->finalizeSiteSettings($siteSettings);
+                $configs = $siteSettings->get('redirector_redirections_merged', []);
+            }
+            if (!$configs) {
+                return;
+            }
         }
 
         $params = $routeMatch->getParams();

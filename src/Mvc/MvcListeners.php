@@ -53,10 +53,10 @@ class MvcListeners extends AbstractListenerAggregate
         $resourceId = null;
         if ($matchedRouteName === 'site/resource-id') {
             $id = $routeMatch->getParam('id');
-            $resourceId = is_numeric($id) ? (int) $id : null;
+            $resourceId = is_numeric($id) && (int) $id > 0 ? (int) $id : null;
         } elseif ($matchedRouteName === 'site/item-set') {
             $id = $routeMatch->getParam('item-set-id');
-            $resourceId = is_numeric($id) ? (int) $id : null;
+            $resourceId = is_numeric($id) && (int) $id > 0 ? (int) $id : null;
         }
 
         // Match by resource id or by route name or by constructed path key.
@@ -101,7 +101,7 @@ class MvcListeners extends AbstractListenerAggregate
             try {
                 // To use the api is the simplest way to check visibility.
                 $api->read('resources', ['id' => $resourceId], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // Resource not accessible (not found or no permission).
                 $logger = $services->get('Omeka\Logger');
                 $logger->warn(new PsrMessage(
@@ -124,9 +124,13 @@ class MvcListeners extends AbstractListenerAggregate
             $request = $event->getRequest();
             $uri = $request->getUri();
 
-            // Split path and query.
-            $pathPart = parse_url($redirection, PHP_URL_PATH) ?: '/';
-            $queryPart = parse_url($redirection, PHP_URL_QUERY) ?: '';
+            // Split path and query. parse_url returns null when the component
+            // is absent and false on malformed input; coalesce explicitly so
+            // an empty string (a valid result) is preserved when relevant.
+            $pathPart = parse_url($redirection, PHP_URL_PATH);
+            $pathPart = ($pathPart === null || $pathPart === false || $pathPart === '') ? '/' : $pathPart;
+            $queryPart = parse_url($redirection, PHP_URL_QUERY);
+            $queryPart = ($queryPart === null || $queryPart === false) ? '' : (string) $queryPart;
 
             $uri->setPath($pathPart);
             $uri->setQuery($queryPart);
@@ -179,6 +183,11 @@ class MvcListeners extends AbstractListenerAggregate
             }
             $routeName = 'site/page';
             $pageSlug = $redirection;
+            // Reject anything that does not match a plausible page slug to
+            // avoid forging RouteMatch params with arbitrary characters.
+            if (!preg_match('/^[A-Za-z0-9._-]+$/', $pageSlug)) {
+                return;
+            }
             $api = $services->get('Omeka\ApiManager');
             try {
                 // To use the api read is the simplest way to check visibility.
@@ -207,6 +216,15 @@ class MvcListeners extends AbstractListenerAggregate
         }
 
         $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $originalParams);
+        // Reject override of routing internals: an admin-supplied params map
+        // must not be able to point the dispatcher to an arbitrary controller
+        // or namespace. Allow only when no explicit page route was forged.
+        if (!isset($config['route'])) {
+            $reserved = ['__NAMESPACE__', '__CONTROLLER__', '__SITE__', 'controller'];
+            foreach ($reserved as $key) {
+                unset($dynamicParams[$key]);
+            }
+        }
         // Remove useless null and empty string to avoid overriding route part.
         $finalParams = array_filter(array_replace($baseParams, $dynamicParams), static fn($v) => $v !== null && $v !== '');
 
@@ -271,6 +289,17 @@ class MvcListeners extends AbstractListenerAggregate
         $status = in_array($status, [301, 302, 303, 307, 308], true)
             ? $status
             : 302;
+
+        if ($services) {
+            try {
+                $services->get('Omeka\Logger')->info(new PsrMessage(
+                    '[Redirector] External redirect to {url} with status {status}.', // @translate
+                    ['url' => $url, 'status' => $status]
+                ));
+            } catch (\Throwable $e) {
+                // Logger optional - never block redirect on log failure.
+            }
+        }
 
         /** @see \Laminas\Mvc\Controller\Plugin\Redirect::toUrl() */
         /* // TODO Use event response in order to get statistics.

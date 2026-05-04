@@ -89,8 +89,18 @@ class Module extends AbstractModule
             $normalized[(string) $k] = ['target' => (string) $v];
         }
 
+        // Re-validate advanced entries: settings can be written outside the
+        // form (fixtures, scripts), so trust nothing on the read path.
+        $sanitizedAdvanced = [];
+        foreach ($advanced as $k => $v) {
+            if (!is_array($v) || empty($v['target']) || !is_string($v['target'])) {
+                continue;
+            }
+            $sanitizedAdvanced[(string) $k] = $v;
+        }
+
         // Advanced overrides simple.
-        $configs = array_replace($normalized, $advanced);
+        $configs = array_replace($normalized, $sanitizedAdvanced);
 
         $siteSettings->set('redirector_redirections_merged', $configs);
     }

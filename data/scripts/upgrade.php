@@ -39,7 +39,8 @@ if (!method_exists($this, 'checkModuleActiveVersion') || !$this->checkModuleActi
         'The module %1$s should be upgraded to version %2$s or later.', // @translate
         'Common', '3.4.85'
     );
-    throw new ModuleCannotInstallException((string) $message);
+    $messenger->addError($message);
+    throw new \Omeka\Module\Exception\ModuleCannotInstallException((string) $translate('Missing requirement. Unable to upgrade.')); // @translate
 }
 
 if (version_compare($oldVersion, '3.4.2', '<')) {

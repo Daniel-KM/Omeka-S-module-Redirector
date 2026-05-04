@@ -193,7 +193,7 @@ class MvcListeners extends AbstractListenerAggregate
                 // To use the api read is the simplest way to check visibility.
                 $site = $api->read('sites', ['slug' => $siteSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false])->getContent();
                 $api->read('site_pages', ['site' => $site->getId(), 'slug' => $pageSlug], [], ['responseContent' => 'resource', 'initialize' => false, 'finalize' => false]);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // Site or page not accessible (not found or no permission).
                 $logger = $services->get('Omeka\Logger');
                 $logger->warn(new PsrMessage(

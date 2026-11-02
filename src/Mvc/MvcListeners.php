@@ -185,7 +185,8 @@ class MvcListeners extends AbstractListenerAggregate
             $queryParams = $this->prepareParamsArray($config['query'] ?? [], $params);
             $queryString = $queryParams ? http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986) : '';
             $finalUrl = $redirection . ($queryString ? '?' . $queryString : '');
-            return $this->redirectToUrl($event, $finalUrl, $status, $services);
+            // An external url cannot be forwarded internally.
+            return $this->redirectToUrl($event, $finalUrl, $status ?? 302, $services);
         }
 
         // Internal page slug flow.

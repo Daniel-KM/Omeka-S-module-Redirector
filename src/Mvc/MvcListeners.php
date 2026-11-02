@@ -5,6 +5,7 @@ namespace Redirector\Mvc;
 use Common\Stdlib\PsrMessage;
 use Laminas\EventManager\AbstractListenerAggregate;
 use Laminas\EventManager\EventManagerInterface;
+use Laminas\Http\Response;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Router\Http\RouteMatch;
 
@@ -22,8 +23,11 @@ class MvcListeners extends AbstractListenerAggregate
 
     /**
      * Redirect any resource page to any site page or url.
+     *
+     * A returned response stops the route event, so the redirection is sent
+     * without dispatch.
      */
-    public function redirectResource(MvcEvent $event): void
+    public function redirectResource(MvcEvent $event): ?Response
     {
         /**
          * @var \Omeka\Api\Manager $api
@@ -32,12 +36,12 @@ class MvcListeners extends AbstractListenerAggregate
 
         $routeMatch = $event->getRouteMatch();
         if (!$routeMatch) {
-            return;
+            return null;
         }
 
         $matchedRouteName = $routeMatch->getMatchedRouteName();
         if ($matchedRouteName !== 'site' && strpos($matchedRouteName, 'site/') !== 0) {
-            return;
+            return null;
         }
 
         $services = $event->getApplication()->getServiceManager();
@@ -51,7 +55,7 @@ class MvcListeners extends AbstractListenerAggregate
             $simple = $siteSettings->get('redirector_redirections', []);
             $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
             if (!$simple && !$advancedRaw) {
-                return;
+                return null;
             }
             $module = $services->get('Omeka\ModuleManager')->getModule('Redirector');
             if ($module && method_exists($module, 'finalizeSiteSettings')) {
@@ -59,7 +63,7 @@ class MvcListeners extends AbstractListenerAggregate
                 $configs = $siteSettings->get('redirector_redirections_merged', []);
             }
             if (!$configs) {
-                return;
+                return null;
             }
         }
 
@@ -98,7 +102,7 @@ class MvcListeners extends AbstractListenerAggregate
             }
         }
         if (empty($config['target'])) {
-            return;
+            return null;
         }
 
         // Default to internal forwarding unless explicit status.
@@ -121,7 +125,7 @@ class MvcListeners extends AbstractListenerAggregate
                     '[Redirector] Rights check failed for resource {resource_id}: {message}', // @translate
                     ['resource_id' => $resourceId, 'message' => $e->getMessage()]
                 ));
-                return;
+                return null;
             }
         }
 
@@ -174,15 +178,14 @@ class MvcListeners extends AbstractListenerAggregate
                 }
                 $event->setRouteMatch($newMatch);
             }
-            return;
+            return null;
         }
 
         if ($isInternalAbsolutePath || $isExternalUrl) {
             $queryParams = $this->prepareParamsArray($config['query'] ?? [], $params);
             $queryString = $queryParams ? http_build_query($queryParams, '', '&', PHP_QUERY_RFC3986) : '';
             $finalUrl = $redirection . ($queryString ? '?' . $queryString : '');
-            $this->redirectToUrlViaHeaders($finalUrl, $status, $services);
-            return;
+            return $this->redirectToUrl($event, $finalUrl, $status, $services);
         }
 
         // Internal page slug flow.
@@ -191,14 +194,14 @@ class MvcListeners extends AbstractListenerAggregate
         if (!$routeName) {
             // Cannot redirect to page without site context.
             if (!$siteSlug) {
-                return;
+                return null;
             }
             $routeName = 'site/page';
             $pageSlug = $redirection;
             // Reject anything that does not match a plausible page slug to
             // avoid forging RouteMatch params with arbitrary characters.
             if (!preg_match('/^[A-Za-z0-9._-]+$/', $pageSlug)) {
-                return;
+                return null;
             }
             $api = $services->get('Omeka\ApiManager');
             try {
@@ -212,7 +215,7 @@ class MvcListeners extends AbstractListenerAggregate
                     '[Redirector] Page redirect failed for site "{site_slug}", page "{page_slug}": {message}', // @translate
                     ['site_slug' => $siteSlug, 'page_slug' => $pageSlug, 'message' => $e->getMessage()]
                 ));
-                return;
+                return null;
             }
             $baseParams = [
                 '__NAMESPACE__' => 'Omeka\Controller\Site',
@@ -248,6 +251,7 @@ class MvcListeners extends AbstractListenerAggregate
         $newMatch = new RouteMatch($finalParams);
         $newMatch->setMatchedRouteName($routeName);
         $event->setRouteMatch($newMatch);
+        return null;
     }
 
     protected function prepareParamsArray(array $map, array $original): array
@@ -271,66 +275,38 @@ class MvcListeners extends AbstractListenerAggregate
         ) ?? '';
     }
 
-    protected function redirectToUrlViaHeaders(string $url, int $status = 302, $services = null): void
+    protected function redirectToUrl(MvcEvent $event, string $url, int $status, $services): ?Response
     {
         // Prepend domain if url is a site-relative path.
         if (strpos($url, '/') === 0) {
-            $serverUrlHelper = $services
-                ? $services->get('ViewHelperManager')->get('serverUrl')
-                : new \Laminas\View\Helper\ServerUrl();
-            $base = rtrim($serverUrlHelper(), '/');
-            $url = $base . $url;
+            $serverUrlHelper = $services->get('ViewHelperManager')->get('serverUrl');
+            $url = rtrim($serverUrlHelper(), '/') . $url;
         }
 
-        // Security:
-        // Validate url to prevent header injection and XSS.
         // Reject urls with newline characters (header injection).
         if (preg_match('/[\r\n]/', $url)) {
-            return;
+            return null;
         }
 
-        // Validate url scheme - only allow http/https.
-        $parsedUrl = parse_url($url);
-        if (!$parsedUrl || !isset($parsedUrl['scheme'])) {
-            return;
-        }
-
-        $scheme = strtolower($parsedUrl['scheme']);
+        // Allow only http and https.
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
         if (!in_array($scheme, ['http', 'https'], true)) {
-            return;
+            return null;
         }
 
         $status = in_array($status, [301, 302, 303, 307, 308], true)
             ? $status
             : 302;
 
-        if ($services) {
-            try {
-                $services->get('Omeka\Logger')->info(new PsrMessage(
-                    '[Redirector] External redirect to {url} with status {status}.', // @translate
-                    ['url' => $url, 'status' => $status]
-                ));
-            } catch (\Throwable $e) {
-                // Logger optional - never block redirect on log failure.
-            }
-        }
+        $services->get('Omeka\Logger')->info(new PsrMessage(
+            '[Redirector] External redirect to {url} with status {status}.', // @translate
+            ['url' => $url, 'status' => $status]
+        ));
 
         /** @see \Laminas\Mvc\Controller\Plugin\Redirect::toUrl() */
-        /* // TODO Use event response in order to get statistics.
-        $event->setResponse(new \Laminas\Http\Response);
-        $event->getResponse()
-            ->setStatusCode($status)
-            ->getHeaders()->addHeaderLine('Location', $url);
-        return;
-         */
-        if (headers_sent()) {
-            // Use url-safe escaping for html context.
-            $urlEscaped = htmlspecialchars($url, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-            echo '<script>window.location.href="' . $urlEscaped . '";</script>';
-            echo '<noscript><meta http-equiv="refresh" content="0;url=' . $urlEscaped . '"></noscript>';
-        } else {
-            header('Location: ' . $url, true, $status);
-        }
-        die();
+        $response = $event->getResponse();
+        $response->getHeaders()->addHeaderLine('Location', $url);
+        $response->setStatusCode($status);
+        return $response;
     }
 }

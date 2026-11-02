@@ -250,7 +250,7 @@ class MvcListeners extends AbstractListenerAggregate
             }
         }
         // Remove useless null and empty string to avoid overriding route part.
-        $finalParams = array_filter(array_replace($baseParams, $dynamicParams), static fn($v) => $v !== null && $v !== '');
+        $finalParams = array_filter(array_replace($baseParams, $dynamicParams), static fn ($v) => $v !== null && $v !== '');
 
         $queryParams = $this->prepareParamsArray($config['query'] ?? [], $params);
         if ($queryParams) {

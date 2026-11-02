@@ -44,7 +44,6 @@ class Module extends AbstractModule
     protected function preInstall(): void
     {
         $services = $this->getServiceLocator();
-        $plugins = $services->get('ControllerPluginManager');
         $translator = $services->get('MvcTranslator');
 
         if (!method_exists($this, 'checkModuleActiveVersion') || !$this->checkModuleActiveVersion('Common', '3.4.95')) {

@@ -6,7 +6,6 @@ use Common\Form\Element as CommonElement;
 use Laminas\Form\Element;
 use Laminas\Form\Fieldset;
 use Laminas\InputFilter\InputFilterProviderInterface;
-use Omeka\Form\Element as OmekaElement;
 
 class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterface
 {
@@ -30,12 +29,16 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
 
             ->add([
                 'name' => 'redirector_redirections',
-                'type' => OmekaElement\ArrayTextarea::class,
+                'type' => CommonElement\ArrayTextarea::class,
                 'options' => [
                     'element_group' => 'redirector',
                     'label' => 'Simple redirections from any resource (id = resource id, page slug or url)', // @translate
                     'info' => 'Format: left part is a resource id; right part is another resource id, a page slug or an absolute/relative url.', // @translate
                     'as_key_value' => true,
+                    'pairs_editor' => [
+                        'key_label' => 'Resource', // @translate
+                        'value_label' => 'Redirection', // @translate
+                    ],
                 ],
                 'attributes' => [
                     'id' => 'redirector_redirections',

@@ -121,7 +121,7 @@ class MvcListeners extends AbstractListenerAggregate
         }
 
         $targetTemplate = (string) $config['target'];
-        $redirection = $this->replacePlaceholders($targetTemplate, $params);
+        $redirection = $this->replacePlaceholders($targetTemplate, $params, true);
 
         $isInternalAbsolutePath = strpos($redirection, '/') === 0;
         $isExternalUrl = strpos($redirection, 'https://') === 0 || strpos($redirection, 'http://') === 0;
@@ -299,11 +299,21 @@ class MvcListeners extends AbstractListenerAggregate
         return $result;
     }
 
-    protected function replacePlaceholders(string $template, array $values): string
+    /**
+     * Replace the placeholders like "{id}" by the values of the route.
+     *
+     * The values are encoded when the template is an url, so they cannot change
+     * its structure. The values that are not scalar are skipped.
+     */
+    protected function replacePlaceholders(string $template, array $values, bool $isUrl = false): string
     {
         return preg_replace_callback(
             '/\{([^}]+)\}/u',
-            fn($m) => (string) ($values[$m[1]] ?? ''),
+            function ($m) use ($values, $isUrl): string {
+                $value = $values[$m[1]] ?? '';
+                $value = is_scalar($value) ? (string) $value : '';
+                return $isUrl ? rawurlencode($value) : $value;
+            },
             $template
         ) ?? '';
     }

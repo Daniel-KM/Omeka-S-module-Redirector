@@ -43,16 +43,24 @@ vendor/bin/phpunit -c modules/Redirector/phpunit.xml --testdox
 Usage
 -----
 
-The redirections can be set in the site settings.
+The redirections can be set in the main settings, for all sites, and in the
+site settings. A redirection of a site overrides a main one with the same key.
+
+The main redirections apply to the pages outside of the sites too, for example
+the route "top" (the root of Omeka). A target that is a page slug or a resource
+id requires a site, so it is skipped outside of the sites. The admin, the api,
+the login and the pages to manage the password, the install and the migration
+are never redirected.
 
 The option is a text area where you can fill one redirection by row. Set the
-resource id, then the sign "=", then the slug of the page or a url, relative or
-absolute.
+resource id, then the sign "=", then the id of another resource, the slug of the
+page or a url, relative or absolute.
 
 ```
+12 = 34
 151 = events
 2024 = /s/my-site/page/my-page
-40101 = https://omeka.org/s
+40201 = https://omeka.org/s
 ```
 
 For complex cases, it is possible to define the whole route:
@@ -155,7 +163,7 @@ Copyright
 [Redirector]: https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector
 [Omeka S]: https://omeka.org/s
 [installing a module]: https://omeka.org/s/docs/user-manual/modules/
-[Redirector.zip]: https://github.com/Daniel-KM/Omeka-S-module-Redirector/releases
+[Redirector.zip]: https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector/-/releases
 [module issues]: https://gitlab.com/Daniel-KM/Omeka-S-module-Redirector/issues
 [Common]: https://gitlab.com/Daniel-KM/Omeka-S-module-Common
 [CeCILL v2.1]: https://www.cecill.info/licences/Licence_CeCILL_V2.1-en.html

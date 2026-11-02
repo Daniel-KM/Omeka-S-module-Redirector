@@ -33,14 +33,15 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                 'type' => OmekaElement\ArrayTextarea::class,
                 'options' => [
                     'element_group' => 'redirector',
-                    'label' => 'Simple redirections from any resource (id = page slug or url)', // @translate
-                    'info' => 'Format: left part is a resource id; right part is a page slug or absolute/relative url.', // @translate
+                    'label' => 'Simple redirections from any resource (id = resource id, page slug or url)', // @translate
+                    'info' => 'Format: left part is a resource id; right part is another resource id, a page slug or an absolute/relative url.', // @translate
                     'as_key_value' => true,
                 ],
                 'attributes' => [
                     'id' => 'redirector_redirections',
                     'rows' => 6,
                     'placeholder' => <<<'TXT'
+                        123 = 456
                         151 = events
                         2024 = /s/my-site/page/my-page
                         40101 = https://omeka.org/s

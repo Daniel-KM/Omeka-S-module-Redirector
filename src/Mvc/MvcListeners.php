@@ -123,6 +123,14 @@ class MvcListeners extends AbstractListenerAggregate
         $targetTemplate = (string) $config['target'];
         $redirection = $this->replacePlaceholders($targetTemplate, $params, true);
 
+        // A target that is a number is the id of another resource of the site.
+        if (ctype_digit($redirection)) {
+            $redirection = $this->resourcePath($services, (int) $redirection, $params['site-slug'] ?? null);
+            if ($redirection === null) {
+                return null;
+            }
+        }
+
         $isInternalAbsolutePath = strpos($redirection, '/') === 0;
         $isExternalUrl = strpos($redirection, 'https://') === 0 || strpos($redirection, 'http://') === 0;
 
@@ -247,6 +255,27 @@ class MvcListeners extends AbstractListenerAggregate
         $newMatch->setMatchedRouteName($routeName);
         $event->setRouteMatch($newMatch);
         return null;
+    }
+
+    /**
+     * Get the path of a resource in a site, if it is visible by the user.
+     */
+    protected function resourcePath($services, int $resourceId, ?string $siteSlug): ?string
+    {
+        if (!$resourceId || !$siteSlug) {
+            return null;
+        }
+        try {
+            /** @var \Omeka\Api\Representation\AbstractResourceEntityRepresentation $resource */
+            $resource = $services->get('Omeka\ApiManager')->read('resources', $resourceId)->getContent();
+        } catch (\Throwable $e) {
+            $services->get('Omeka\Logger')->warn(new PsrMessage(
+                '[Redirector] Redirect to resource {resource_id} failed: {message}', // @translate
+                ['resource_id' => $resourceId, 'message' => $e->getMessage()]
+            ));
+            return null;
+        }
+        return '/s/' . $siteSlug . '/' . $resource->getControllerName() . '/' . $resourceId;
     }
 
     /**

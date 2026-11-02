@@ -87,7 +87,13 @@ class MvcListeners extends AbstractListenerAggregate
 
         // Optional path-like key (site specific).
         if (isset($params['site-slug'])) {
+            // The keys are paths relative to the root of Omeka, that may be
+            // installed in a sub-directory.
             $uriPath = $event->getRequest()->getUri()->getPath();
+            $baseUrl = $this->baseUrl($event);
+            if ($baseUrl !== '' && strpos($uriPath, $baseUrl . '/') === 0) {
+                $uriPath = substr($uriPath, strlen($baseUrl));
+            }
             // Use raw path as a key if present in config.
             $keyCandidates[] = $uriPath;
             // Also without leading slash.
@@ -138,7 +144,6 @@ class MvcListeners extends AbstractListenerAggregate
         if ($isInternalAbsolutePath && $internal) {
             // Internal forward: rewrite URI + re-match router.
             $request = $event->getRequest();
-            $uri = $request->getUri();
 
             // Split path and query. parse_url returns null when the component
             // is absent and false on malformed input; coalesce explicitly so
@@ -148,8 +153,17 @@ class MvcListeners extends AbstractListenerAggregate
             $queryPart = parse_url($redirection, PHP_URL_QUERY);
             $queryPart = ($queryPart === null || $queryPart === false) ? '' : (string) $queryPart;
 
-            $uri->setPath($pathPart);
+            // Match the new path on a copy, so the request is unchanged when
+            // the target does not match any route.
+            $uri = clone $request->getUri();
+            $uri->setPath($this->baseUrl($event) . $pathPart);
             $uri->setQuery($queryPart);
+            $newRequest = clone $request;
+            $newRequest->setUri($uri);
+            $newMatch = $event->getRouter()->match($newRequest);
+            if (!$newMatch instanceof RouteMatch) {
+                return null;
+            }
             $request->setUri($uri);
 
             // Merge configured query params with original query params.
@@ -167,17 +181,12 @@ class MvcListeners extends AbstractListenerAggregate
                 $request->getQuery()->fromArray($queryParams);
             }
 
-            // Re-match router for new path.
-            $router = $event->getRouter();
-            $newMatch = $router->match($request);
-            if ($newMatch instanceof RouteMatch) {
-                // Apply dynamic params override if provided.
-                $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $params);
-                foreach ($dynamicParams as $k => $v) {
-                    $newMatch->setParam($k, $v);
-                }
-                $event->setRouteMatch($newMatch);
+            // Apply dynamic params override if provided.
+            $dynamicParams = $this->prepareParamsArray($config['params'] ?? [], $params);
+            foreach ($dynamicParams as $k => $v) {
+                $newMatch->setParam($k, $v);
             }
+            $event->setRouteMatch($newMatch);
             return null;
         }
 
@@ -255,6 +264,17 @@ class MvcListeners extends AbstractListenerAggregate
         return null;
     }
 
+    /**
+     * Get the base url of Omeka, empty when installed at the root.
+     */
+    protected function baseUrl(MvcEvent $event): string
+    {
+        $router = $event->getRouter();
+        return method_exists($router, 'getBaseUrl')
+            ? rtrim((string) $router->getBaseUrl(), '/')
+            : '';
+    }
+
     protected function prepareParamsArray(array $map, array $original): array
     {
         $result = [];
@@ -278,10 +298,10 @@ class MvcListeners extends AbstractListenerAggregate
 
     protected function redirectToUrl(MvcEvent $event, string $url, int $status, $services): ?Response
     {
-        // Prepend domain if url is a site-relative path.
+        // Prepend domain and base url if url is a site-relative path.
         if (strpos($url, '/') === 0) {
             $serverUrlHelper = $services->get('ViewHelperManager')->get('serverUrl');
-            $url = rtrim($serverUrlHelper(), '/') . $url;
+            $url = rtrim($serverUrlHelper(), '/') . $this->baseUrl($event) . $url;
         }
 
         // Reject urls with newline characters (header injection).

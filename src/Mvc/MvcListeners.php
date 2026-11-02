@@ -29,25 +29,31 @@ class MvcListeners extends AbstractListenerAggregate
      */
     public function redirectResource(MvcEvent $event): ?Response
     {
-        /**
-         * @var \Omeka\Api\Manager $api
-         * @var \Omeka\Settings\SiteSettings $siteSettings
-         */
-
         $routeMatch = $event->getRouteMatch();
         if (!$routeMatch) {
             return null;
         }
 
-        $matchedRouteName = $routeMatch->getMatchedRouteName();
-        if ($matchedRouteName !== 'site' && strpos($matchedRouteName, 'site/') !== 0) {
+        // Never redirect the admin, the api, the login, the install or the
+        // migration, so a wrong redirection cannot lock out the admin.
+        $matchedRouteName = (string) $routeMatch->getMatchedRouteName();
+        if (preg_match('~^(?:admin|api|login|logout|create-password|forgot-password|install|migrate)(?:$|[/-])~', $matchedRouteName)) {
             return null;
         }
 
+        /**
+         * @var \Omeka\Settings\Settings $settings
+         * @var \Omeka\Settings\SiteSettings $siteSettings
+         */
         $services = $event->getApplication()->getServiceManager();
-        $siteSettings = $services->get('Omeka\Settings\Site');
+        $settings = $services->get('Omeka\Settings');
+        $isSite = $matchedRouteName === 'site' || strpos($matchedRouteName, 'site/') === 0;
+        $siteSettings = $isSite ? $services->get('Omeka\Settings\Site') : null;
 
-        $configs = $this->redirections($siteSettings);
+        // The redirections of the site override the main ones.
+        $configs = $siteSettings
+            ? array_replace($this->redirections($settings), $this->redirections($siteSettings))
+            : $this->redirections($settings);
         if (!$configs) {
             return null;
         }
@@ -70,20 +76,17 @@ class MvcListeners extends AbstractListenerAggregate
         }
         $keyCandidates[] = $matchedRouteName;
 
-        // Optional path-like key (site specific).
-        if (isset($params['site-slug'])) {
-            // The keys are paths relative to the root of Omeka, that may be
-            // installed in a sub-directory.
-            $uriPath = $event->getRequest()->getUri()->getPath();
-            $baseUrl = $this->baseUrl($event);
-            if ($baseUrl !== '' && strpos($uriPath, $baseUrl . '/') === 0) {
-                $uriPath = substr($uriPath, strlen($baseUrl));
-            }
-            // Use raw path as a key if present in config.
-            $keyCandidates[] = $uriPath;
-            // Also without leading slash.
-            $keyCandidates[] = ltrim($uriPath, '/');
+        // The keys are paths relative to the root of Omeka, that may be
+        // installed in a sub-directory.
+        $uriPath = $event->getRequest()->getUri()->getPath();
+        $baseUrl = $this->baseUrl($event);
+        if ($baseUrl !== '' && strpos($uriPath, $baseUrl . '/') === 0) {
+            $uriPath = substr($uriPath, strlen($baseUrl));
         }
+        // Use raw path as a key if present in config.
+        $keyCandidates[] = $uriPath;
+        // Also without leading slash.
+        $keyCandidates[] = ltrim($uriPath, '/');
 
         $config = [];
         foreach ($keyCandidates as $candidate) {
@@ -104,7 +107,10 @@ class MvcListeners extends AbstractListenerAggregate
         $internal = !$status;
 
         // Rights check (only when resource id available).
-        if ($resourceId && $siteSettings->get('redirector_check_rights')) {
+        $checkRights = $settings->get('redirector_check_rights')
+            || ($siteSettings && $siteSettings->get('redirector_check_rights'));
+        if ($resourceId && $checkRights) {
+            /**@var \Omeka\Api\Manager $api */
             $api = $services->get('Omeka\ApiManager');
             try {
                 // To use the api is the simplest way to check visibility.
@@ -279,16 +285,16 @@ class MvcListeners extends AbstractListenerAggregate
     }
 
     /**
-     * Merge the simple and the advanced redirections of the site.
+     * Merge the simple and advanced redirections of the main or site settings.
      *
      * The settings are read on each request, so they are always up to date,
      * even when they are updated outside of the form. The advanced ones are
      * checked again, because they may be set without the form too.
      */
-    protected function redirections(\Omeka\Settings\SiteSettings $siteSettings): array
+    protected function redirections(\Omeka\Settings\SettingsInterface $settings): array
     {
-        $simple = $siteSettings->get('redirector_redirections', []);
-        $advanced = json_decode((string) $siteSettings->get('redirector_redirections_advanced'), true);
+        $simple = $settings->get('redirector_redirections', []);
+        $advanced = json_decode((string) $settings->get('redirector_redirections_advanced'), true);
 
         $redirections = [];
         foreach (is_array($simple) ? $simple : [] as $key => $target) {

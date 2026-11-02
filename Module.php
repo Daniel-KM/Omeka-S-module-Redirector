@@ -9,7 +9,6 @@ if (!class_exists('Common\TraitModule', false)) {
 }
 
 use Common\TraitModule;
-use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Omeka\Module\AbstractModule;
 
@@ -43,14 +42,14 @@ class Module extends AbstractModule
     public function attachListeners(SharedEventManagerInterface $sharedEventManager): void
     {
         $sharedEventManager->attach(
+            \Omeka\Form\SettingForm::class,
+            'form.add_elements',
+            [$this, 'handleMainSettings']
+        );
+        $sharedEventManager->attach(
             \Omeka\Form\SiteSettingsForm::class,
             'form.add_elements',
             [$this, 'handleSiteSettings']
         );
-    }
-
-    public function handleSiteSettings(Event $event): void
-    {
-        $this->handleAnySettings($event, 'site_settings');
     }
 }

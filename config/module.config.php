@@ -13,6 +13,7 @@ return [
     ],
     'form_elements' => [
         'invokables' => [
+            Form\SettingsFieldset::class => Form\SettingsFieldset::class,
             Form\SiteSettingsFieldset::class => Form\SiteSettingsFieldset::class,
         ],
     ],
@@ -27,6 +28,11 @@ return [
         ],
     ],
     'redirector' => [
+        'settings' => [
+            'redirector_redirections' => [],
+            'redirector_redirections_advanced' => '',
+            'redirector_check_rights' => false,
+        ],
         'site_settings' => [
             'redirector_redirections' => [],
             'redirector_redirections_advanced' => '',

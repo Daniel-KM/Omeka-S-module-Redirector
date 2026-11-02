@@ -8,8 +8,7 @@ use RedirectorTest\RedirectorTestTrait;
 /**
  * Tests for form validation logic in SiteSettingsFieldset.
  *
- * These tests validate the callback logic directly rather than through
- * the InputFilter to avoid service manager dependencies.
+ * The values are validated with the input filter of the fieldset.
  */
 class SiteSettingsFieldsetValidationTest extends AbstractHttpControllerTestCase
 {
@@ -22,57 +21,14 @@ class SiteSettingsFieldsetValidationTest extends AbstractHttpControllerTestCase
         parent::setUp();
         $this->loginAdmin();
 
-        // Extract the validation callback from the fieldset specification.
-        // This is the callback that validates the JSON structure.
-        $this->validationCallback = function ($value) {
-            if ($value === '' || $value === null) {
-                return true;
-            }
-            $decoded = json_decode($value, true);
-            if (!is_array($decoded)) {
-                return false;
-            }
-            if ($decoded === []) {
-                return true;
-            }
-            $isAssoc = array_keys($decoded) !== range(0, count($decoded) - 1);
-            if (!$isAssoc) {
-                return false;
-            }
-            // Collect sources and targets for loop detection.
-            $targets = [];
-            foreach ($decoded as $key => $v) {
-                if (!is_array($v) || empty($v['target']) || !is_string($v['target'])) {
-                    return false;
-                }
-                if (isset($v['status']) && !in_array((int) $v['status'], [301, 302, 303, 307, 308], true)) {
-                    return false;
-                }
-                if (isset($v['params']) && !is_array($v['params'])) {
-                    return false;
-                }
-                if (isset($v['query']) && !is_array($v['query'])) {
-                    return false;
-                }
-                // Validate route is a non-empty string if provided.
-                if (isset($v['route']) && (!is_string($v['route']) || $v['route'] === '')) {
-                    return false;
-                }
-                // Extract target path for loop detection.
-                $targetPath = parse_url($v['target'], PHP_URL_PATH) ?: $v['target'];
-                $targets[$key] = $targetPath;
-            }
-            // Check for direct redirect loops (A→B and B→A).
-            foreach ($targets as $source => $target) {
-                if (isset($decoded[$target])) {
-                    $reverseTarget = parse_url($decoded[$target]['target'], PHP_URL_PATH)
-                        ?: $decoded[$target]['target'];
-                    if ($reverseTarget === $source) {
-                        return false;
-                    }
-                }
-            }
-            return true;
+        // Validate the value with the real input filter of the fieldset.
+        $formElements = $this->getApplication()->getServiceManager()->get('FormElementManager');
+        $this->validationCallback = function ($value) use ($formElements): bool {
+            $form = new \Laminas\Form\Form();
+            $form->add($formElements->get(\Redirector\Form\SiteSettingsFieldset::class), ['name' => 'redirector']);
+            $form->setData(['redirector' => ['redirector_redirections_advanced' => $value]]);
+            $form->isValid();
+            return !isset($form->getMessages()['redirector']['redirector_redirections_advanced']);
         };
     }
 
@@ -80,6 +36,18 @@ class SiteSettingsFieldsetValidationTest extends AbstractHttpControllerTestCase
     {
         $this->cleanupResources();
         parent::tearDown();
+    }
+
+    /**
+     * Test the simple redirections are edited as pairs in the site settings.
+     */
+    public function testSimpleRedirectionsUsePairsEditor(): void
+    {
+        $site = $this->createSite('pairs-test');
+        $this->dispatch('/admin/site/s/' . $site->slug() . '/edit');
+        $this->assertResponseStatusCode(200);
+        $this->assertQuery('textarea#redirector_redirections.common-pairs-textarea');
+        $this->assertQuery('script[src*="common-pairs-textarea.js"]');
     }
 
     /**

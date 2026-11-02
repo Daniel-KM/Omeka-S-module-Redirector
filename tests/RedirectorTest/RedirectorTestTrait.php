@@ -90,7 +90,7 @@ trait RedirectorTestTrait
         if ($redirections) {
             $siteSettings = $this->getServiceLocator()->get('Omeka\Settings\Site');
             $siteSettings->setTargetId($site->id());
-            $siteSettings->set('redirector_redirections_merged', $redirections);
+            $siteSettings->set('redirector_redirections_advanced', json_encode($redirections));
         }
 
         return $site;
@@ -106,7 +106,7 @@ trait RedirectorTestTrait
     {
         $siteSettings = $this->getServiceLocator()->get('Omeka\Settings\Site');
         $siteSettings->setTargetId($siteId);
-        $siteSettings->set('redirector_redirections_merged', $redirections);
+        $siteSettings->set('redirector_redirections_advanced', json_encode($redirections));
     }
 
     /**

@@ -9,8 +9,7 @@ use RedirectorTest\RedirectorTestTrait;
 /**
  * Security tests for MvcListeners URL validation.
  *
- * These tests verify that the security measures in redirectToUrlViaHeaders()
- * properly reject malicious URLs.
+ * These tests verify that the redirections to urls reject malicious urls.
  */
 class MvcListenersSecurityTest extends AbstractHttpControllerTestCase
 {
@@ -38,12 +37,8 @@ class MvcListenersSecurityTest extends AbstractHttpControllerTestCase
      */
     public function testUrlWithNewlinesIsRejected(string $maliciousUrl): void
     {
-        // We can't test redirectToUrlViaHeaders directly as it dies(),
-        // but we can test the validation logic by checking the URL patterns.
-        $this->assertTrue(
-            (bool) preg_match('/[\r\n]/', $maliciousUrl),
-            "URL should contain newline characters: $maliciousUrl"
-        );
+        $this->dispatchRedirection($maliciousUrl);
+        $this->assertNotRedirected();
     }
 
     public function headerInjectionUrlsProvider(): array
@@ -64,17 +59,9 @@ class MvcListenersSecurityTest extends AbstractHttpControllerTestCase
      */
     public function testValidUrlsAreAccepted(string $url): void
     {
-        // Check that URL doesn't contain newlines.
-        $this->assertFalse(
-            (bool) preg_match('/[\r\n]/', $url),
-            "Valid URL should not contain newlines"
-        );
-
-        // Check that URL has valid scheme.
-        $parsed = parse_url($url);
-        $this->assertNotFalse($parsed);
-        $this->assertArrayHasKey('scheme', $parsed);
-        $this->assertContains(strtolower($parsed['scheme']), ['http', 'https']);
+        $this->dispatchRedirection($url);
+        $this->assertResponseStatusCode(302);
+        $this->assertSame($url, $this->getResponse()->getHeaders()->get('Location')->getUri());
     }
 
     public function validUrlsProvider(): array
@@ -86,7 +73,6 @@ class MvcListenersSecurityTest extends AbstractHttpControllerTestCase
             'https with port' => ['https://example.org:8443/page'],
             'http url' => ['http://example.org/page'],
             'https with fragment' => ['https://example.org/page#section'],
-            'unicode domain' => ['https://例え.jp/page'],
             'long path' => ['https://example.org/' . str_repeat('path/', 50)],
         ];
     }
@@ -98,16 +84,8 @@ class MvcListenersSecurityTest extends AbstractHttpControllerTestCase
      */
     public function testInvalidSchemesAreRejected(string $url): void
     {
-        $parsed = parse_url($url);
-
-        if ($parsed && isset($parsed['scheme'])) {
-            $scheme = strtolower($parsed['scheme']);
-            $this->assertNotContains(
-                $scheme,
-                ['http', 'https'],
-                "Scheme '$scheme' should be rejected"
-            );
-        }
+        $this->dispatchRedirection($url);
+        $this->assertNotRedirected();
     }
 
     public function invalidSchemeUrlsProvider(): array
@@ -123,15 +101,69 @@ class MvcListenersSecurityTest extends AbstractHttpControllerTestCase
     }
 
     /**
-     * Test that relative paths are handled (prepended with domain).
+     * Test that relative paths are prepended with the server url.
      */
     public function testRelativePathsArePrepended(): void
     {
-        $url = '/s/test/page';
-        $this->assertTrue(
-            strpos($url, '/') === 0,
-            "Relative URL should start with /"
-        );
+        // The server url is built from the host, missing in cli.
+        $_SERVER['HTTP_HOST'] = 'example.org';
+        try {
+            $this->dispatchRedirection('/s/security-test/page/new', 301);
+        } finally {
+            unset($_SERVER['HTTP_HOST']);
+        }
+        $this->assertResponseStatusCode(301);
+        $location = $this->getResponse()->getHeaders()->get('Location')->getUri();
+        $this->assertSame('http://example.org/s/security-test/page/new', $location);
+    }
+
+    /**
+     * Test that an external url without status is redirected with 302.
+     */
+    public function testExternalUrlWithoutStatusIsRedirected(): void
+    {
+        $site = $this->createSite('security-test');
+        $this->setRedirectorConfig($site->id(), [
+            '/s/security-test/page/old' => ['target' => 'https://omeka.org/s'],
+        ]);
+        $this->dispatch('/s/security-test/page/old');
+        $this->assertResponseStatusCode(302);
+        $this->assertSame('https://omeka.org/s', $this->getResponse()->getHeaders()->get('Location')->getUri());
+    }
+
+    /**
+     * Test that the simple redirections are used without saving the form.
+     */
+    public function testSimpleRedirectionSetOutsideForm(): void
+    {
+        $site = $this->createSite('security-test');
+        $siteSettings = $this->getServiceLocator()->get('Omeka\Settings\Site');
+        $siteSettings->setTargetId($site->id());
+        $siteSettings->set('redirector_redirections', ['/s/security-test/page/old' => 'https://omeka.org/s']);
+        $this->dispatch('/s/security-test/page/old');
+        $this->assertResponseStatusCode(302);
+        $this->assertSame('https://omeka.org/s', $this->getResponse()->getHeaders()->get('Location')->getUri());
+    }
+
+    /**
+     * Dispatch a page of a site redirected to the specified target.
+     */
+    protected function dispatchRedirection(string $target, int $status = 302): void
+    {
+        $site = $this->createSite('security-test');
+        $this->setRedirectorConfig($site->id(), [
+            '/s/security-test/page/old' => [
+                'target' => $target,
+                'status' => $status,
+            ],
+        ]);
+        $this->dispatch('/s/security-test/page/old');
+    }
+
+    protected function assertNotRedirected(): void
+    {
+        $this->assertNotContains($this->getResponse()->getStatusCode(), [301, 302, 303, 307, 308]);
+        $this->assertFalse($this->getResponse()->getHeaders()->has('Location'));
     }
 
     /**

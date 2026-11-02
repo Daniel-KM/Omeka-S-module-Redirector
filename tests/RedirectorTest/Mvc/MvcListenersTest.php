@@ -6,7 +6,6 @@ use Laminas\Http\Request;
 use Laminas\Mvc\MvcEvent;
 use Laminas\Router\Http\RouteMatch;
 use Laminas\Stdlib\Parameters;
-use Laminas\Uri\Http as HttpUri;
 use Omeka\Test\AbstractHttpControllerTestCase;
 use Redirector\Mvc\MvcListeners;
 use RedirectorTest\RedirectorTestTrait;
@@ -213,6 +212,27 @@ class MvcListenersTest extends AbstractHttpControllerTestCase
 
         $result = $method->invoke($listener, $template, $values);
         $this->assertEquals('/s/my-site/item//view', $result);
+    }
+
+    /**
+     * Test placeholders in an url are encoded and non-scalar values skipped.
+     */
+    public function testPlaceholderInUrlIsEncoded(): void
+    {
+        $listener = new MvcListeners();
+
+        $reflection = new \ReflectionClass($listener);
+        $method = $reflection->getMethod('replacePlaceholders');
+        $method->setAccessible(true);
+
+        $template = 'https://example.org/{slug}/{list}';
+        $values = [
+            'slug' => 'a/b?c=d#e',
+            'list' => ['x'],
+        ];
+
+        $this->assertSame('https://example.org/a%2Fb%3Fc%3Dd%23e/', $method->invoke($listener, $template, $values, true));
+        $this->assertSame('https://example.org/a/b?c=d#e/', $method->invoke($listener, $template, $values));
     }
 
     /**

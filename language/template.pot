@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-01 00:00+0000\n"
+"POT-Creation-Date: 2026-11-02 00:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,69 +17,96 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: Module.php:35
+#: data/scripts/upgrade.php:43
+msgid "Missing requirement. Unable to upgrade."
+msgstr ""
+
+#: Module.php:51
 #, php-format
 msgid "The module %1$s should be upgraded to version %2$s or later."
 msgstr ""
 
-#: data/scripts/upgrade.php:54
+#: data/scripts/upgrade.php:48
 msgid "It is now possible to manage complex redirections with placeholders."
 msgstr ""
 
-#: Module.php:80
+#: data/scripts/upgrade.php:58
 msgid ""
-"The advanced redirections are not a valid json. Check quotes, commas, "
-"escapes and backslash."
+"It is now possible to redirect a resource to another one, for example \"123 "
+"= 456\"."
 msgstr ""
 
-#: src/Mvc/MvcListeners.php:108
+#: data/scripts/upgrade.php:62
+msgid "The redirections now support Omeka installed in a sub-directory."
+msgstr ""
+
+#: data/scripts/upgrade.php:69
+msgid ""
+"The redirections can be set in the main settings too, for all sites and for "
+"the pages outside of the sites."
+msgstr ""
+
+#: src/Mvc/MvcListeners.php:122
 msgid "[Redirector] Rights check failed for resource {resource_id}: {message}"
 msgstr ""
 
-#: src/Mvc/MvcListeners.php:191
+#: src/Mvc/MvcListeners.php:224
 msgid ""
 "[Redirector] Page redirect failed for site \"{site_slug}\", page "
 "\"{page_slug}\": {message}"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:16 src/Form/SiteSettingsFieldset.php:22
+#: src/Mvc/MvcListeners.php:279
+msgid "[Redirector] Redirect to resource {resource_id} failed: {message}"
+msgstr ""
+
+#: src/Mvc/MvcListeners.php:380
+msgid "[Redirector] External redirect to {url} with status {status}."
+msgstr ""
+
+#: src/Form/SettingsFieldset.php:15 src/Form/SettingsFieldset.php:21
 msgid "Redirector"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:36
-msgid "Simple redirections from any resource (id = page slug or url)"
-msgstr ""
-
-#: src/Form/SiteSettingsFieldset.php:37
+#: src/Form/SettingsFieldset.php:35
 msgid ""
-"Format: left part is a resource id; right part is a page slug or absolute/"
-"relative url."
+"Simple redirections from any resource (id = resource id, page slug or url)"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:56
+#: src/Form/SettingsFieldset.php:36
+msgid ""
+"Format: left part is a resource id; right part is another resource id, a "
+"page slug or an absolute/relative url."
+msgstr ""
+
+#: src/Form/SettingsFieldset.php:40
+msgid "Redirection"
+msgstr ""
+
+#: src/Form/SettingsFieldset.php:60
 msgid "Advanced redirections (JSON)"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:57
+#: src/Form/SettingsFieldset.php:61
 msgid ""
 "JSON: route or key => { \"target\": \"...\", \"route\": \"site/page\", "
 "\"params\": {...}, \"query\": {...}, \"status\": 302 }. Redirect is internal "
 "when status is not set."
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:104
+#: src/Form/SettingsFieldset.php:108
 msgid "Check rights to view resource before redirection"
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:133
-msgid "Value is not JSON."
-msgstr ""
-
-#: src/Form/SiteSettingsFieldset.php:134
+#: src/Form/SettingsFieldset.php:138
 msgid "Malformed JSON string."
 msgstr ""
 
-#: src/Form/SiteSettingsFieldset.php:193
+#: src/Form/SettingsFieldset.php:139
+msgid "The JSON must be an object."
+msgstr ""
+
+#: src/Form/SettingsFieldset.php:198
 msgid ""
 "JSON must map keys to objects with at least a non-empty \"target\". Routes "
 "must be non-empty strings. No redirect loops allowed."

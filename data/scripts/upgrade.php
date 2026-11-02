@@ -44,15 +44,13 @@ if (!method_exists($this, 'checkModuleActiveVersion') || !$this->checkModuleActi
 }
 
 if (version_compare($oldVersion, '3.4.2', '<')) {
-    $siteSettings = $services->get('Omeka\Settings\Site');
-    $sites = $api->search('sites')->getContent();
-    foreach ($sites as $site) {
-        $siteSettings->setTargetId($site->id());
-        $this->finalizeSiteSettings($siteSettings);
-    }
-
     $message = new PsrMessage(
         'It is now possible to manage complex redirections with placeholders.' // @translate
     );
     $messenger->addSuccess($message);
+}
+
+if (version_compare($oldVersion, '3.4.6', '<')) {
+    // The redirections are merged on each request.
+    $connection->executeStatement('DELETE FROM `site_setting` WHERE `id` = "redirector_redirections_merged"');
 }

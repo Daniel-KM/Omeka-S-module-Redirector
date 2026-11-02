@@ -12,7 +12,6 @@ use Common\TraitModule;
 use Laminas\EventManager\Event;
 use Laminas\EventManager\SharedEventManagerInterface;
 use Omeka\Module\AbstractModule;
-use Omeka\Settings\SiteSettings;
 
 /**
  * Redirector.
@@ -53,60 +52,5 @@ class Module extends AbstractModule
     public function handleSiteSettings(Event $event): void
     {
         $this->handleAnySettings($event, 'site_settings');
-        $this->finalizeSiteSettings();
-    }
-
-    /**
-     * Check and merge redirections in one setting.
-     *
-     * @internal Public so MvcListeners can refresh stale cache when the
-     * setting was never persisted (e.g. fresh install without form save).
-     */
-    public function finalizeSiteSettings(?SiteSettings $siteSettings = null): void
-    {
-        /**
-         * @var \Omeka\Settings\SiteSettings $siteSettings
-         */
-        $siteSettings ??= $this->getServiceLocator()->get('Omeka\Settings\Site');
-
-        $simple = $siteSettings->get('redirector_redirections', []);
-        if (!is_array($simple)) {
-            $simple = [];
-        }
-
-        $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
-        $advanced = $advancedRaw
-            ? json_decode($advancedRaw, true)
-            : [];
-        if ($advancedRaw && !$advanced) {
-            $plugins = $this->getServiceLocator()->get('ControllerPluginManager');
-            $messenger = $plugins->get('messenger');
-            $messenger->addWarning(new \Common\Stdlib\PsrMessage(
-                'The advanced redirections are not a valid json. Check quotes, commas, escapes and backslash.') // @translate
-            );
-        }
-        if (!is_array($advanced)) {
-            $advanced = [];
-        }
-
-        $normalized = [];
-        foreach ($simple as $k => $v) {
-            $normalized[(string) $k] = ['target' => (string) $v];
-        }
-
-        // Re-validate advanced entries: settings can be written outside the
-        // form (fixtures, scripts), so trust nothing on the read path.
-        $sanitizedAdvanced = [];
-        foreach ($advanced as $k => $v) {
-            if (!is_array($v) || empty($v['target']) || !is_string($v['target'])) {
-                continue;
-            }
-            $sanitizedAdvanced[(string) $k] = $v;
-        }
-
-        // Advanced overrides simple.
-        $configs = array_replace($normalized, $sanitizedAdvanced);
-
-        $siteSettings->set('redirector_redirections_merged', $configs);
     }
 }

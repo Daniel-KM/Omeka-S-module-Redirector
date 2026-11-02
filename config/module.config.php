@@ -31,8 +31,6 @@ return [
             'redirector_redirections' => [],
             'redirector_redirections_advanced' => '',
             'redirector_check_rights' => false,
-            // Hidden config.
-            'redirector_redirections_merged' => [],
         ],
     ],
 ];

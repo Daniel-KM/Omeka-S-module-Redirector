@@ -47,24 +47,9 @@ class MvcListeners extends AbstractListenerAggregate
         $services = $event->getApplication()->getServiceManager();
         $siteSettings = $services->get('Omeka\Settings\Site');
 
-        $configs = $siteSettings->get('redirector_redirections_merged', []);
+        $configs = $this->redirections($siteSettings);
         if (!$configs) {
-            // Lazy fallback: regenerate the merged setting from the source
-            // ones. Useful right after install when the admin has not yet
-            // saved the form.
-            $simple = $siteSettings->get('redirector_redirections', []);
-            $advancedRaw = (string) $siteSettings->get('redirector_redirections_advanced');
-            if (!$simple && !$advancedRaw) {
-                return null;
-            }
-            $module = $services->get('Omeka\ModuleManager')->getModule('Redirector');
-            if ($module && method_exists($module, 'finalizeSiteSettings')) {
-                $module->finalizeSiteSettings($siteSettings);
-                $configs = $siteSettings->get('redirector_redirections_merged', []);
-            }
-            if (!$configs) {
-                return null;
-            }
+            return null;
         }
 
         $params = $routeMatch->getParams();
@@ -262,6 +247,33 @@ class MvcListeners extends AbstractListenerAggregate
         $newMatch->setMatchedRouteName($routeName);
         $event->setRouteMatch($newMatch);
         return null;
+    }
+
+    /**
+     * Merge the simple and the advanced redirections of the site.
+     *
+     * The settings are read on each request, so they are always up to date,
+     * even when they are updated outside of the form. The advanced ones are
+     * checked again, because they may be set without the form too.
+     */
+    protected function redirections(\Omeka\Settings\SiteSettings $siteSettings): array
+    {
+        $simple = $siteSettings->get('redirector_redirections', []);
+        $advanced = json_decode((string) $siteSettings->get('redirector_redirections_advanced'), true);
+
+        $redirections = [];
+        foreach (is_array($simple) ? $simple : [] as $key => $target) {
+            $redirections[(string) $key] = ['target' => (string) $target];
+        }
+
+        // Advanced overrides simple.
+        foreach (is_array($advanced) ? $advanced : [] as $key => $config) {
+            if (is_array($config) && !empty($config['target']) && is_string($config['target'])) {
+                $redirections[(string) $key] = $config;
+            }
+        }
+
+        return $redirections;
     }
 
     /**

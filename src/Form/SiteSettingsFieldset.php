@@ -127,11 +127,12 @@ class SiteSettingsFieldset extends Fieldset implements InputFilterProviderInterf
                 ],
                 'validators' => [
                     [
-                        'name' => 'Laminas\Validator\Json',
+                        'name' => \Laminas\Validator\IsJsonString::class,
                         'options' => [
+                            'allow' => \Laminas\Validator\IsJsonString::ALLOW_OBJECT,
                             'messages' => [
-                                'INVALID' => 'Value is not JSON.', // @translate
-                                'INVALID_JSON' => 'Malformed JSON string.', // @translate
+                                \Laminas\Validator\IsJsonString::ERROR_INVALID_JSON => 'Malformed JSON string.', // @translate
+                                \Laminas\Validator\IsJsonString::ERROR_TYPE_NOT_ALLOWED => 'The JSON must be an object.', // @translate
                             ],
                         ],
                     ],

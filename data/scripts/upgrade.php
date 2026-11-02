@@ -3,7 +3,6 @@
 namespace Redirector;
 
 use Common\Stdlib\PsrMessage;
-use Omeka\Module\Exception\ModuleCannotInstallException;
 
 /**
  * @var Module $this
@@ -23,7 +22,8 @@ use Omeka\Module\Exception\ModuleCannotInstallException;
  * @var \Omeka\Mvc\Controller\Plugin\Messenger $messenger
  */
 $plugins = $services->get('ControllerPluginManager');
-$url = $plugins->get('url');
+$helpers = $services->get('ViewHelperManager');
+$url = $helpers->get('url');
 $api = $plugins->get('api');
 $logger = $services->get('Omeka\Logger');
 $settings = $services->get('Omeka\Settings');
@@ -53,4 +53,20 @@ if (version_compare($oldVersion, '3.4.2', '<')) {
 if (version_compare($oldVersion, '3.4.6', '<')) {
     // The redirections are merged on each request.
     $connection->executeStatement('DELETE FROM `site_setting` WHERE `id` = "redirector_redirections_merged"');
+
+    $message = new PsrMessage(
+        'It is now possible to redirect a resource to another one, for example "123 = 456".' // @translate
+    );
+    $messenger->addSuccess($message);
+    $message = new PsrMessage(
+        'The redirections now support Omeka installed in a sub-directory.' // @translate
+    );
+    $messenger->addSuccess($message);
+}
+
+if (version_compare($oldVersion, '3.4.7', '<')) {
+    $message = new PsrMessage(
+        'The redirections can be set in the main settings too, for all sites and for the pages outside of the sites.' // @translate
+    );
+    $messenger->addSuccess($message);
 }
